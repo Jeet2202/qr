@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import robotLeft   from "../../assets/robot-left.png.png";
 import robotRight  from "../../assets/robot-right.png.png";
 import robotBottom from "../../assets/robot-bottom.png.png";
@@ -122,6 +123,7 @@ function Spinner() {
 
 /* ─────────────────────────── Main Login Component ─────────────────────────── */
 export default function Login() {
+  const navigate = useNavigate();
   const [form, setForm]         = useState({ identifier: "", password: "" });
   const [errors, setErrors]     = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -141,6 +143,14 @@ export default function Login() {
     return errs;
   }
 
+  /* ── Hardcoded test users ── */
+  const TEST_USERS = [
+    { identifier: "admin@hackflow.com",    password: "123456",     role: "admin",     redirect: "/admin-dashboard"     },
+    { identifier: "admin",                 password: "123456",     role: "admin",     redirect: "/admin-dashboard"     },
+    { identifier: "organizer@techclub.edu",password: "123456", role: "organizer", redirect: "/organizer-dashboard" },
+    { identifier: "organizer",             password: "123456", role: "organizer", redirect: "/organizer-dashboard" },
+  ];
+
   /* ── Submit ── */
   async function handleSubmit(e) {
     e.preventDefault();
@@ -150,17 +160,24 @@ export default function Login() {
     setErrors({});
     setIsLoading(true);
 
-    // Simulated API call
-    await new Promise((r) => setTimeout(r, 1400));
+    await new Promise((r) => setTimeout(r, 1000));
 
-    if (form.password === "wrongpass") {
-      setLoginError("⚠️ Invalid credentials. Please try again.");
+    // Check hardcoded test logins
+    const match = TEST_USERS.find(
+      (u) =>
+        u.identifier === form.identifier.trim().toLowerCase() &&
+        u.password   === form.password
+    );
+
+    if (match) {
       setIsLoading(false);
+      navigate(match.redirect);
       return;
     }
 
+    // Wrong credentials
+    setLoginError("⚠️ Invalid credentials. Please try again.");
     setIsLoading(false);
-    setSuccess(true);
   }
 
   /* ── Field change ── */
