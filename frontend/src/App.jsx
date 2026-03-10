@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import LandingPage from './pages/LandingPage';
+import LandingPage from './pages/common/LandingPage';
 import AnimatedLoginPage from './pages/animated-characters-login-page';
 import AnimatedSignupPage from './pages/AnimatedSignupPage';
 import AdminDashboard from './pages/AdminDashboard';
