@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 
 const navLinks = [
-  { label: 'Home', href: '#' },
+  { label: 'Home', href: '/' },
   { label: 'Explore Hackathons', href: '#hackathons' },
   { label: 'Features', href: '#features' },
   { label: 'For Organizers', href: '#user-types' },
+  { label: 'Admin', href: '/admin-dashboard' },
   { label: 'Contact', href: '#footer' },
 ];
 
@@ -26,15 +27,17 @@ export default function Navbar() {
 
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <a
-                key={link.label}
-                href={link.href}
-                className="text-sm font-medium text-gray-600 hover:text-royal transition-colors duration-200"
-              >
-                {link.label}
-              </a>
-            ))}
+            {navLinks.map((link) =>
+              link.href.startsWith('/') ? (
+                <Link key={link.label} to={link.href} className="text-sm font-medium text-gray-600 hover:text-royal transition-colors duration-200">
+                  {link.label}
+                </Link>
+              ) : (
+                <a key={link.label} href={link.href} className="text-sm font-medium text-gray-600 hover:text-royal transition-colors duration-200">
+                  {link.label}
+                </a>
+              )
+            )}
           </div>
 
           {/* Desktop Buttons */}
@@ -65,16 +68,17 @@ export default function Navbar() {
         }`}
       >
         <div className="px-4 pb-4 pt-2 space-y-2 bg-white border-t border-gray-100">
-          {navLinks.map((link) => (
-            <a
-              key={link.label}
-              href={link.href}
-              className="block px-3 py-2 text-sm font-medium text-gray-700 hover:text-royal hover:bg-royal/5 rounded-lg transition-colors"
-              onClick={() => setMobileOpen(false)}
-            >
-              {link.label}
-            </a>
-          ))}
+          {navLinks.map((link) =>
+            link.href.startsWith('/') ? (
+              <Link key={link.label} to={link.href} className="block px-3 py-2 text-sm font-medium text-gray-700 hover:text-royal hover:bg-royal/5 rounded-lg transition-colors" onClick={() => setMobileOpen(false)}>
+                {link.label}
+              </Link>
+            ) : (
+              <a key={link.label} href={link.href} className="block px-3 py-2 text-sm font-medium text-gray-700 hover:text-royal hover:bg-royal/5 rounded-lg transition-colors" onClick={() => setMobileOpen(false)}>
+                {link.label}
+              </a>
+            )
+          )}
           <div className="flex gap-3 pt-3 border-t border-gray-100">
             <Link to="/login" className="flex-1 text-center px-4 py-2 text-sm font-semibold text-royal border-2 border-royal rounded-lg hover:bg-royal hover:text-white transition-all" onClick={() => setMobileOpen(false)}>
               Login
