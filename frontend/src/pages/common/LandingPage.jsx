@@ -18,9 +18,9 @@ import {
   Calendar,
   Rocket,
 } from 'lucide-react';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
-import heroImg from '../assets/hero-illustration.png';
+import Navbar from '../../components/Navbar';
+import Footer from '../../components/Footer';
+import heroImg from '../../assets/hero-illustration.png';
 
 /* ───────────────────────── DATA ───────────────────────── */
 
@@ -46,13 +46,13 @@ const features = [
 ];
 
 const steps = [
-  { icon: UserCheck, label: 'Student Verification' },
-  { icon: Users, label: 'Team Formation' },
-  { icon: ClipboardList, label: 'Hackathon Registration' },
-  { icon: FileText, label: 'PPT Submission' },
-  { icon: ListChecks, label: 'Shortlisting' },
-  { icon: CalendarCheck, label: 'Offline Event Management' },
-  { icon: Award, label: 'Certificate Generation' },
+  { icon: UserCheck,    label: 'Student Verification' },
+  { icon: Users,        label: 'Team Formation' },
+  { icon: ClipboardList,label: 'Hackathon Registration' },
+  { icon: FileText,     label: 'PPT Submission' },
+  { icon: ListChecks,   label: 'Shortlisting' },
+  { icon: CalendarCheck,label: 'Offline Event Management' },
+  { icon: Award,        label: 'Certificate Generation' },
 ];
 
 const userTypes = [
