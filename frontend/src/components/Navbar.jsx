@@ -3,12 +3,11 @@ import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 
 const navLinks = [
-  { label: 'Home', href: '/' },
+  { label: 'Home',               href: '/' },
   { label: 'Explore Hackathons', href: '#hackathons' },
-  { label: 'Features', href: '#features' },
-  { label: 'For Organizers', href: '#user-types' },
-  { label: 'Admin', href: '/admin-dashboard' },
-  { label: 'Contact', href: '#footer' },
+  { label: 'Features',           href: '#features' },
+  { label: 'For Organizers',     href: '#user-types' },
+  { label: 'Contact',            href: '#footer' },
 ];
 
 export default function Navbar() {
