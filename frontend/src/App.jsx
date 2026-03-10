@@ -1,11 +1,18 @@
-import { useState } from 'react'
-
-import './App.css'
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import LandingPage from './pages/LandingPage';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import VerifyOTP from './pages/VerifyOTP';
 
 export default function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white text-3xl font-bold">
-      Tailwind CSS v4 is working 🚀
-    </div>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
