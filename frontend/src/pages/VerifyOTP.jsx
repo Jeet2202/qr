@@ -1,18 +1,49 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, RotateCcw } from 'lucide-react';
 
-/* ───────── Inline Component ───────── */
+/* ═══════════════ ANIMATION VARIANTS ═══════════════ */
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+};
+
+const scaleIn = {
+  hidden: { opacity: 0, scale: 0.8 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+};
+
+const stagger = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08 } },
+};
+
+const otpBoxVariant = {
+  hidden: { opacity: 0, y: 20, scale: 0.8 },
+  visible: (i) => ({
+    opacity: 1, y: 0, scale: 1,
+    transition: { delay: i * 0.06, duration: 0.4, ease: 'easeOut' },
+  }),
+};
+
+/* ═══════════════ INLINE COMPONENT ═══════════════ */
 
 function AuthCard({ children }) {
   return (
-    <div className="w-full max-w-md bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-8 sm:p-10">
+    <motion.div
+      initial={{ opacity: 0, y: 50, scale: 0.92 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.7, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className="w-full max-w-md bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-8 sm:p-10"
+    >
       {children}
-    </div>
+    </motion.div>
   );
 }
 
-/* ───────── VerifyOTP Page ───────── */
+/* ═══════════════ VERIFY OTP PAGE ═══════════════ */
 
 export default function VerifyOTP() {
   const navigate = useNavigate();
@@ -33,9 +64,7 @@ export default function VerifyOTP() {
     return () => clearInterval(id);
   }, [resendTimer]);
 
-  useEffect(() => {
-    inputRefs.current[0]?.focus();
-  }, []);
+  useEffect(() => { inputRefs.current[0]?.focus(); }, []);
 
   const handleChange = (index, value) => {
     if (value && !/^\d$/.test(value)) return;
@@ -64,11 +93,7 @@ export default function VerifyOTP() {
     e.preventDefault();
     if (otp.join('').length < 6) { setError('Please enter the complete 6-digit code'); return; }
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setSuccess(true);
-      setTimeout(() => navigate(role === 'organizer' ? '/organizer-dashboard' : '/student-dashboard'), 1500);
-    }, 1200);
+    setTimeout(() => { setLoading(false); setSuccess(true); setTimeout(() => navigate(role === 'organizer' ? '/organizer-dashboard' : '/student-dashboard'), 1500); }, 1200);
   };
 
   const handleResend = () => {
@@ -81,60 +106,83 @@ export default function VerifyOTP() {
   return (
     <div className="min-h-screen bg-light-gray flex items-center justify-center px-4 py-12">
       <AuthCard>
-        <Link to="/" className="inline-block mb-8">
-          <span className="text-2xl font-extrabold text-royal tracking-tight">Hack<span className="text-dark">Flow</span></span>
-        </Link>
+        <motion.div initial="hidden" animate="visible" variants={stagger}>
+          <motion.div variants={fadeUp}>
+            <Link to="/" className="inline-block mb-8">
+              <span className="text-2xl font-extrabold text-royal tracking-tight">Hack<span className="text-dark">Flow</span></span>
+            </Link>
+          </motion.div>
 
-        {success ? (
-          <div className="text-center py-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 mb-6">
-              <ShieldCheck size={32} className="text-emerald-500" />
-            </div>
-            <h2 className="text-xl font-bold text-dark mb-2">Account Created Successfully!</h2>
-            <p className="text-sm text-gray-500">Redirecting to your dashboard...</p>
-            <div className="mt-4 w-5 h-5 mx-auto border-2 border-royal/30 border-t-royal rounded-full animate-spin" />
-          </div>
-        ) : (
-          <>
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-royal/5 mb-5">
-                <ShieldCheck size={26} className="text-royal" />
-              </div>
-              <h1 className="text-2xl font-bold text-dark mb-2">Verify Your Email</h1>
-              <p className="text-sm text-gray-500">
-                We have sent a 6-digit verification code to <span className="font-medium text-dark">{email}</span>
-              </p>
-            </div>
+          <AnimatePresence mode="wait">
+            {success ? (
+              <motion.div key="success" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5, ease: 'easeOut' }} className="text-center py-8">
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 300, delay: 0.1 }} className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 mb-6">
+                  <ShieldCheck size={32} className="text-emerald-500" />
+                </motion.div>
+                <motion.h2 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="text-xl font-bold text-dark mb-2">Account Created Successfully!</motion.h2>
+                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className="text-sm text-gray-500">Redirecting to your dashboard...</motion.p>
+                <div className="mt-4 w-5 h-5 mx-auto border-2 border-royal/30 border-t-royal rounded-full animate-spin" />
+              </motion.div>
+            ) : (
+              <motion.div key="form" initial={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.9 }} transition={{ duration: 0.3 }}>
+                <motion.div variants={scaleIn} className="text-center mb-8">
+                  <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 200, delay: 0.2 }} className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-royal/5 mb-5">
+                    <ShieldCheck size={26} className="text-royal" />
+                  </motion.div>
+                  <motion.h1 variants={fadeUp} className="text-2xl font-bold text-dark mb-2">Verify Your Email</motion.h1>
+                  <motion.p variants={fadeUp} className="text-sm text-gray-500">
+                    We have sent a 6-digit verification code to <span className="font-medium text-dark">{email}</span>
+                  </motion.p>
+                </motion.div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="flex justify-center gap-3">
-                {otp.map((digit, i) => (
-                  <input key={i} ref={(el) => (inputRefs.current[i] = el)} type="text" inputMode="numeric" maxLength={1} value={digit} onChange={(e) => handleChange(i, e.target.value)} onKeyDown={(e) => handleKeyDown(i, e)} onPaste={i === 0 ? handlePaste : undefined}
-                    className={`w-12 h-14 text-center text-lg font-bold rounded-xl border-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all duration-200 ${error ? 'border-red-300 focus:ring-red-500 focus:border-transparent' : digit ? 'border-royal/40 focus:ring-royal focus:border-transparent' : 'border-gray-200 focus:ring-royal focus:border-transparent'}`}
-                  />
-                ))}
-              </div>
-              {error && <p className="text-center text-xs text-red-500">{error}</p>}
-              <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-royal rounded-xl hover:bg-royal-light transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 cursor-pointer">
-                {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Verify OTP'}
-              </button>
-            </form>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="flex justify-center gap-3">
+                    {otp.map((digit, i) => (
+                      <motion.input
+                        key={i}
+                        custom={i}
+                        initial="hidden"
+                        animate="visible"
+                        variants={otpBoxVariant}
+                        whileFocus={{ scale: 1.08, borderColor: '#1E3A8A' }}
+                        ref={(el) => (inputRefs.current[i] = el)}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleChange(i, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(i, e)}
+                        onPaste={i === 0 ? handlePaste : undefined}
+                        className={`w-12 h-14 text-center text-lg font-bold rounded-xl border-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all duration-200 ${
+                          error ? 'border-red-300 focus:ring-red-500 focus:border-transparent' : digit ? 'border-royal/40 focus:ring-royal focus:border-transparent' : 'border-gray-200 focus:ring-royal focus:border-transparent'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  {error && <motion.p initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="text-center text-xs text-red-500">{error}</motion.p>}
 
-            <div className="text-center mt-6">
-              {resendTimer > 0 ? (
-                <p className="text-sm text-gray-400">Resend code in <span className="font-semibold text-dark">{resendTimer}s</span></p>
-              ) : (
-                <button type="button" onClick={handleResend} className="inline-flex items-center gap-1.5 text-sm font-medium text-royal hover:text-royal-light transition-colors cursor-pointer">
-                  <RotateCcw size={14} /> Resend OTP
-                </button>
-              )}
-            </div>
-          </>
-        )}
+                  <motion.button variants={fadeUp} initial="hidden" animate="visible" whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.98 }} type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-royal rounded-xl hover:bg-royal-light transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 cursor-pointer">
+                    {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Verify OTP'}
+                  </motion.button>
+                </form>
 
-        <p className="text-center text-sm text-gray-500 mt-8">
-          <Link to="/signup" className="font-medium text-gray-500 hover:text-royal transition-colors">← Back to Sign Up</Link>
-        </p>
+                <motion.div variants={fadeUp} initial="hidden" animate="visible" className="text-center mt-6">
+                  {resendTimer > 0 ? (
+                    <p className="text-sm text-gray-400">Resend code in <span className="font-semibold text-dark">{resendTimer}s</span></p>
+                  ) : (
+                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} type="button" onClick={handleResend} className="inline-flex items-center gap-1.5 text-sm font-medium text-royal hover:text-royal-light transition-colors cursor-pointer">
+                      <RotateCcw size={14} /> Resend OTP
+                    </motion.button>
+                  )}
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.p variants={fadeUp} className="text-center text-sm text-gray-500 mt-8">
+            <Link to="/signup" className="font-medium text-gray-500 hover:text-royal transition-colors">← Back to Sign Up</Link>
+          </motion.p>
+        </motion.div>
       </AuthCard>
     </div>
   );
