@@ -147,9 +147,10 @@ export default function OtpVerificationPage() {
         role:     state?.role     ?? "",
       }) as { token: string; role: string; name: string };
 
-      localStorage.removeItem("hf_token");
-      localStorage.removeItem("hf_role");
-      localStorage.removeItem("hf_name");
+      localStorage.setItem("hf_token", data.token);
+      localStorage.setItem("hf_role",  data.role);
+      localStorage.setItem("hf_name",  data.name);
+      localStorage.setItem("hf_email", email);
 
       setSuccess(true);
       setTimeout(() => {

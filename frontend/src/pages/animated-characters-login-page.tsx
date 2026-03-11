@@ -70,6 +70,7 @@ export default function AnimatedLoginPage() {
       localStorage.setItem("hf_token", data.token as string);
       localStorage.setItem("hf_role",  data.role as string);
       localStorage.setItem("hf_name",  data.name as string);
+      localStorage.setItem("hf_email", form.email);
       // Role-based redirect
       const role = data.role as string;
       if (role === "admin")     navigate("/admin-dashboard");
