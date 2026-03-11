@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Mail, Lock, ArrowRight, ArrowLeft, Eye, EyeOff,
-  User, GraduationCap, Building2, ShieldCheck, RotateCcw,
+  User, GraduationCap, Building2, ShieldCheck,
 } from "lucide-react";
 import AnimatedCharactersPanel from "../components/ui/AnimatedCharactersPanel";
+import api from "../lib/api";
 
 /* ══════════════ AuthInput ══════════════ */
 
@@ -68,7 +69,7 @@ function RoleSelector({ selectedRole, onSelect }: { selectedRole: string; onSele
 export default function AnimatedSignupPage() {
   const navigate  = useNavigate();
 
-  /* steps: 1=role, 2=form, 3=otp */
+  /* steps: 1=role, 2=form */
   const [step, setStep]   = useState(1);
   const [role, setRole]   = useState("");
 
@@ -76,6 +77,8 @@ export default function AnimatedSignupPage() {
   const [form, setForm]     = useState({ name: "", email: "", password: "", confirmPassword: "", agreeTerms: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
+  const [success, setSuccess] = useState(false);
 
   /* password visibility — confirm eye reveals BOTH; password eye reveals only itself */
   const [showPwd,     setShowPwd]     = useState(false);
@@ -83,26 +86,6 @@ export default function AnimatedSignupPage() {
 
   /* character animation */
   const [isTyping, setIsTyping] = useState(false);
-
-  /* otp */
-  const [otp, setOtp]           = useState(Array(6).fill(""));
-  const [otpError, setOtpError]  = useState("");
-  const [resendTimer, setResendTimer] = useState(30);
-  const [otpLoading, setOtpLoading]  = useState(false);
-  const [otpSuccess, setOtpSuccess]  = useState(false);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  /* resend countdown (starts when step 3 is active) */
-  useEffect(() => {
-    if (step !== 3 || resendTimer <= 0) return;
-    const id = setInterval(() => setResendTimer(t => t - 1), 1000);
-    return () => clearInterval(id);
-  }, [step, resendTimer]);
-
-  /* auto-focus first OTP box on step 3 */
-  useEffect(() => {
-    if (step === 3) setTimeout(() => inputRefs.current[0]?.focus(), 100);
-  }, [step]);
 
   /* ── Password eye handlers ── */
   const toggleShowPwd = () => setShowPwd(v => !v);          // only affects password field
@@ -126,54 +109,40 @@ export default function AnimatedSignupPage() {
     return e;
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs = validate();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
+    setApiError("");
     setLoading(true);
-    setTimeout(() => { setLoading(false); setStep(3); }, 800);
-  };
-
-  /* ── OTP handlers ── */
-  const handleOtpChange = (index: number, value: string) => {
-    if (value && !/^\d$/.test(value)) return;
-    const next = [...otp]; next[index] = value; setOtp(next); setOtpError("");
-    if (value && index < 5) inputRefs.current[index + 1]?.focus();
-  };
-  const handleOtpKey = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) inputRefs.current[index - 1]?.focus();
-  };
-  const handleOtpPaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    if (!pasted) return;
-    const next = [...otp];
-    for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
-    setOtp(next);
-    inputRefs.current[Math.min(pasted.length, 5)]?.focus();
-  };
-  const handleOtpSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otp.join("").length < 6) { setOtpError("Please enter the complete 6-digit code"); return; }
-    setOtpLoading(true);
-    setTimeout(() => {
-      setOtpLoading(false);
-      setOtpSuccess(true);
-      setTimeout(() => navigate(role === "organizer" ? "/organizer-dashboard" : "/student-dashboard"), 1500);
-    }, 1200);
-  };
-  const handleResend = () => {
-    if (resendTimer > 0) return;
-    setResendTimer(30); setOtp(Array(6).fill(""));
-    inputRefs.current[0]?.focus();
+    try {
+      const data = await api.post("/auth/signup", {
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role,
+      });
+      // Store token + user info
+      localStorage.setItem("hf_token", data.token);
+      localStorage.setItem("hf_role", data.role);
+      localStorage.setItem("hf_name", data.name);
+      setSuccess(true);
+      setTimeout(() => {
+        navigate(data.role === "organizer" ? "/organizer-dashboard" : "/student/dashboard");
+      }, 1200);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Something went wrong";
+      setApiError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   /* ── Captions per step ── */
   const captions = [
-    { title: "Join HackFlow Today",       subtitle: "Select your role to start your hackathon journey." },
-    { title: "Almost There!",             subtitle: "Fill in your details to create your account." },
-    { title: "Verify Your Email",         subtitle: "Enter the 6-digit code we sent to your inbox." },
+    { title: "Join HackFlow Today",   subtitle: "Select your role to start your hackathon journey." },
+    { title: "Almost There!",         subtitle: "Fill in your details to create your account." },
   ];
 
   return (
@@ -282,95 +251,34 @@ export default function AnimatedSignupPage() {
                   {errors.agreeTerms && <p className="text-xs text-red-500 ml-6">{errors.agreeTerms}</p>}
                 </div>
 
+                {apiError && (
+                  <p className="text-sm text-red-500 text-center bg-red-50 border border-red-200 rounded-xl px-4 py-2">{apiError}</p>
+                )}
+
                 <button type="submit" disabled={loading}
                   className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-royal rounded-xl hover:bg-royal-light transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 cursor-pointer">
                   {loading
                     ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    : <>Send OTP <ArrowRight size={16} /></>}
+                    : <>Create Account <ArrowRight size={16} /></>}
                 </button>
               </form>
+
+              {/* Success state */}
+              {success && (
+                <div className="text-center py-4">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-50 mb-4">
+                    <ShieldCheck size={28} className="text-emerald-500" />
+                  </div>
+                  <h2 className="text-lg font-bold text-gray-900 mb-1">Account Created!</h2>
+                  <p className="text-sm text-gray-500">Redirecting to your dashboard...</p>
+                  <div className="w-5 h-5 mx-auto mt-3 border-2 border-royal/30 border-t-royal rounded-full animate-spin" />
+                </div>
+              )}
             </>
           )}
 
-          {/* ─── STEP 3: OTP verification ─── */}
-          {step === 3 && (
-            otpSuccess ? (
-              /* Success state */
-              <div className="text-center py-6">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 mb-5">
-                  <ShieldCheck size={32} className="text-emerald-500" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900 mb-2">Account Created!</h2>
-                <p className="text-sm text-gray-500 mb-4">Redirecting you to your dashboard...</p>
-                <div className="w-5 h-5 mx-auto border-2 border-royal/30 border-t-royal rounded-full animate-spin" />
-              </div>
-            ) : (
-              /* OTP input */
-              <>
-                <button type="button" onClick={() => setStep(2)}
-                  className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-royal transition-colors cursor-pointer mb-4">
-                  <ArrowLeft size={14} /> Back
-                </button>
-
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-royal/5 mb-4">
-                    <ShieldCheck size={26} className="text-royal" />
-                  </div>
-                  <h1 className="text-xl font-bold text-gray-900 mb-1">Verify your email</h1>
-                  <p className="text-sm text-gray-500">
-                    We sent a 6-digit code to{" "}
-                    <span className="font-semibold text-gray-800">{form.email}</span>
-                  </p>
-                </div>
-
-                <form onSubmit={handleOtpSubmit} className="space-y-5">
-                  <div className="flex justify-center gap-2.5">
-                    {otp.map((digit, i) => (
-                      <input
-                        key={i}
-                        ref={el => { inputRefs.current[i] = el; }}
-                        type="text" inputMode="numeric" maxLength={1} value={digit}
-                        onChange={e => handleOtpChange(i, e.target.value)}
-                        onKeyDown={e => handleOtpKey(i, e)}
-                        onPaste={i === 0 ? handleOtpPaste : undefined}
-                        className={`w-11 h-13 text-center text-lg font-bold rounded-xl border-2 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-0 transition-all duration-200 ${
-                          otpError
-                            ? "border-red-300 focus:ring-red-400 focus:border-transparent"
-                            : digit
-                            ? "border-royal/40 focus:ring-royal focus:border-transparent"
-                            : "border-gray-200 focus:ring-royal focus:border-transparent"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  {otpError && <p className="text-center text-xs text-red-500">{otpError}</p>}
-
-                  <button type="submit" disabled={otpLoading}
-                    className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-royal rounded-xl hover:bg-royal-light transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 cursor-pointer">
-                    {otpLoading
-                      ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      : <>Verify & Create Account <ArrowRight size={16} /></>}
-                  </button>
-                </form>
-
-                <div className="text-center mt-4">
-                  {resendTimer > 0 ? (
-                    <p className="text-sm text-gray-400">
-                      Resend code in <span className="font-semibold text-gray-700">{resendTimer}s</span>
-                    </p>
-                  ) : (
-                    <button type="button" onClick={handleResend}
-                      className="inline-flex items-center gap-1.5 text-sm font-medium text-royal hover:text-royal-light transition-colors cursor-pointer">
-                      <RotateCcw size={14} /> Resend OTP
-                    </button>
-                  )}
-                </div>
-              </>
-            )
-          )}
-
-          {/* Sign in link (hidden on success screen) */}
-          {!(step === 3 && otpSuccess) && (
+          {/* Sign in link */}
+          {!success && (
             <p className="text-center text-sm text-gray-500 mt-5">
               Already have an account?{" "}
               <Link to="/login" className="font-semibold text-royal hover:text-royal-light transition-colors">Sign In</Link>
