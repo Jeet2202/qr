@@ -150,6 +150,7 @@ export default function OtpVerificationPage() {
       localStorage.setItem("hf_token", data.token);
       localStorage.setItem("hf_role",  data.role);
       localStorage.setItem("hf_name",  data.name);
+      localStorage.setItem("hf_email", email);
 
       setSuccess(true);
       setTimeout(() => {

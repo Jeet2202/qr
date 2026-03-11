@@ -14,16 +14,9 @@ import {
 } from 'lucide-react';
 import StudentNavbar from '../../components/StudentNavbar';
 
-/* ─────────────────────── MOCK DATA ─────────────────────── */
+/* ─────────────────────── DEFAULT DATA ─────────────────────── */
 
-const mockUser = {
-  name: 'Arjun Mehta',
-  email: 'arjun.mehta@college.edu',
-  collegeName: 'Delhi Technological University',
-  verificationStatus: false, // false = not verified
-};
-
-const mockVerification = {
+const defaultVerification = {
   collegeIdImage: null,
   extractedCollegeName: '',
   aadhaarVerified: false,
@@ -270,8 +263,13 @@ function VerificationSection({ verification, onSubmit }) {
 
 export default function Profile() {
   const navigate = useNavigate();
-  const [user] = useState(mockUser);
-  const [verification] = useState(mockVerification);
+  const [user] = useState({
+    name: localStorage.getItem('hf_name') || 'Unknown User',
+    email: localStorage.getItem('hf_email') || '',
+    collegeName: '',
+    verificationStatus: false,
+  });
+  const [verification] = useState(defaultVerification);
 
   return (
     <div className="min-h-screen bg-light-gray">
