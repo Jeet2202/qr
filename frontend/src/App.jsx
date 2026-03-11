@@ -8,6 +8,9 @@ import OrganizerDashboard from './pages/organizer/OrganizerDashboard';
 import CreateHackathon from './pages/organizer/CreateHackathon';
 import ManageHackathon from './pages/organizer/ManageHackathon';
 import EventManagement from './pages/organizer/EventManagement';
+import CertificateTemplatesPage from './pages/organizer/CertificateTemplatesPage';
+import CertificateEditor from './pages/organizer/CertificateEditor';
+import GenerateCertificatesPage from './pages/organizer/GenerateCertificatesPage';
 import Dashboard from './pages/student/Dashboard';
 import Profile from './pages/student/Profile';
 import HackathonDetails from './pages/student/HackathonDetails';
@@ -29,6 +32,9 @@ export default function App() {
         <Route path="/organizer/manage"    element={<ManageHackathon />} />
         <Route path="/organizer/event/:id" element={<EventManagement />} />
         <Route path="/organizer/events"    element={<EventManagement />} />
+        <Route path="/organizer/certificates" element={<CertificateTemplatesPage />} />
+        <Route path="/organizer/certificates/editor" element={<CertificateEditor />} />
+        <Route path="/organizer/certificates/generate" element={<GenerateCertificatesPage />} />
         <Route path="/organizer/ppt-review" element={<PptReview />} />
 
         {/* Student */}
