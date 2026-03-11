@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   PlusCircle, Plus, Trash2, Eye, EyeOff, Check, ArrowLeft, Save,
-  Trophy, Calendar, BookOpen, MessageCircle, Gift,
+  Trophy, Calendar, BookOpen, MessageCircle, Gift, MapPin, Wifi, WifiOff,
 } from 'lucide-react';
 import OrganizerSidebar from '../../components/OrganizerSidebar';
 
@@ -72,6 +72,11 @@ export default function CreateHackathon() {
   const removeDomainPrize = (i) => setDomainPrizes(p => p.filter((_, idx) => idx !== i));
   const updateDomain = (i, k, v) => setDomainPrizes(p => p.map((x, idx) => idx === i ? { ...x, [k]: v } : x));
 
+  /* event mode */
+  const [mode, setMode] = useState('online');
+  const [venue, setVenue] = useState({ college: '', address: '', city: '' });
+  const vSet = (k) => (e) => setVenue(v => ({ ...v, [k]: e.target.value }));
+
   const handleSubmit = (e) => { e.preventDefault(); setSubmitted(true); };
 
   /* ── Success ── */
@@ -128,6 +133,9 @@ export default function CreateHackathon() {
               <div className="space-y-1.5 text-sm">
                 <p><span className="text-gray-500 font-medium">Title:</span> <span className="text-dark font-semibold">{basic.title || '—'}</span></p>
                 <p><span className="text-gray-500 font-medium">Tagline:</span> {basic.tagline || '—'}</p>
+                <p><span className="text-gray-500 font-medium">Mode:</span> <span className={`font-semibold ${mode === 'online' ? 'text-royal' : 'text-amber-600'}`}>{mode === 'online' ? 'Online' : 'Offline / In-Person'}</span></p>
+                {mode === 'offline' && venue.college && <p><span className="text-gray-500 font-medium">College:</span> {venue.college}</p>}
+                {mode === 'offline' && venue.city && <p><span className="text-gray-500 font-medium">City:</span> {venue.city}</p>}
                 <p><span className="text-gray-500 font-medium">Hack dates:</span> {tl.hackStart && tl.hackEnd ? `${tl.hackStart} → ${tl.hackEnd}` : '—'}</p>
                 <p><span className="text-gray-500 font-medium">Total Prize Pool:</span> {totalPool ? `₹${Number(totalPool).toLocaleString('en-IN')}` : '—'}</p>
                 {basic.whatsappLink && <p><span className="text-gray-500 font-medium">WhatsApp:</span> <a href={basic.whatsappLink} className="text-royal hover:underline" target="_blank" rel="noreferrer">{basic.whatsappLink}</a></p>}
@@ -151,6 +159,58 @@ export default function CreateHackathon() {
               <Field label="Rules & Eligibility" required>
                 <textarea className={inputCls} rows={3} placeholder="Rules, eligibility criteria, code of conduct…" value={basic.rules} onChange={bSet('rules')} required />
               </Field>
+            </Card>
+
+            {/* ── EVENT MODE ── */}
+            <Card icon={MapPin} color="text-orange-500 bg-orange-50" title="Event Mode" sub="Is this hackathon online or in-person?">
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMode('online')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-200 cursor-pointer ${
+                    mode === 'online'
+                      ? 'border-royal bg-royal/5 text-royal'
+                      : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                  }`}
+                >
+                  <Wifi size={16} /> Online
+                  {mode === 'online' && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-royal" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('offline')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border-2 transition-all duration-200 cursor-pointer ${
+                    mode === 'offline'
+                      ? 'border-amber-400 bg-amber-50 text-amber-700'
+                      : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                  }`}
+                >
+                  <WifiOff size={16} /> Offline / In-Person
+                  {mode === 'offline' && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-amber-500" />}
+                </button>
+              </div>
+
+              {mode === 'offline' && (
+                <div className="space-y-4 pt-2">
+                  <div className="h-px bg-gray-100" />
+                  <Field label="College / Institution" required>
+                    <input className={inputCls} placeholder="e.g. IIT Bombay, BITS Pilani" value={venue.college} onChange={vSet('college')} required={mode === 'offline'} />
+                  </Field>
+                  <Field label="Venue / Address">
+                    <input className={inputCls} placeholder="e.g. Main Auditorium, Block A" value={venue.address} onChange={vSet('address')} />
+                  </Field>
+                  <Field label="City" required>
+                    <input className={inputCls} placeholder="e.g. Mumbai" value={venue.city} onChange={vSet('city')} required={mode === 'offline'} />
+                  </Field>
+                </div>
+              )}
+
+              {mode === 'online' && (
+                <p className="text-xs text-gray-400 flex items-center gap-1.5 pt-1">
+                  <Wifi size={12} className="text-royal" />
+                  Participants will join remotely. Platform links can be shared after approval.
+                </p>
+              )}
             </Card>
 
             {/* ── TIMELINE ── */}

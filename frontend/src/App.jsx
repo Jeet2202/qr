@@ -7,6 +7,7 @@ import OrganizerDashboard from './pages/organizer/OrganizerDashboard';
 import CreateHackathon from './pages/organizer/CreateHackathon';
 import ManageHackathon from './pages/organizer/ManageHackathon';
 import EventManagement from './pages/organizer/EventManagement';
+import PptReview from './pages/organizer/PptReview';
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/organizer/manage"    element={<ManageHackathon />} />
         <Route path="/organizer/event/:id" element={<EventManagement />} />
         <Route path="/organizer/events"    element={<EventManagement />} />
+        <Route path="/organizer/ppt-review" element={<PptReview />} />
       </Routes>
     </BrowserRouter>
   );
