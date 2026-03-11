@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Mail, Lock, ArrowRight, ArrowLeft, Eye, EyeOff,
-  User, GraduationCap, Building2, ShieldCheck,
+  User, GraduationCap, Building2,
 } from "lucide-react";
 import AnimatedCharactersPanel from "../components/ui/AnimatedCharactersPanel";
 import api from "../lib/api";
@@ -64,23 +64,21 @@ function RoleSelector({ selectedRole, onSelect }: { selectedRole: string; onSele
   );
 }
 
-/* ══════════════ Signup Page ══════════════ */
+/* ══════════════ Signup Page (Steps 1 & 2) ══════════════ */
 
 export default function AnimatedSignupPage() {
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
 
-  /* steps: 1=role, 2=form */
-  const [step, setStep]   = useState(1);
-  const [role, setRole]   = useState("");
+  const [step, setStep] = useState(1);
+  const [role, setRole] = useState("");
 
-  /* form */
+  /* form fields */
   const [form, setForm]     = useState({ name: "", email: "", password: "", confirmPassword: "", agreeTerms: false });
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]   = useState(false);
   const [apiError, setApiError] = useState("");
-  const [success, setSuccess] = useState(false);
 
-  /* password visibility — confirm eye reveals BOTH; password eye reveals only itself */
+  /* password visibility */
   const [showPwd,     setShowPwd]     = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -88,52 +86,58 @@ export default function AnimatedSignupPage() {
   const [isTyping, setIsTyping] = useState(false);
 
   /* ── Password eye handlers ── */
-  const toggleShowPwd = () => setShowPwd(v => !v);          // only affects password field
-  const toggleShowConfirm = () => {                          // controls BOTH fields
+  const toggleShowPwd = () => setShowPwd(v => !v);
+  const toggleShowConfirm = () => {
     const next = !showConfirm;
     setShowConfirm(next);
-    if (next) setShowPwd(true);                              // turning confirm ON  → show both
-    else       setShowPwd(false);                            // turning confirm OFF → hide both
+    if (next) setShowPwd(true);
+    else       setShowPwd(false);
   };
 
-  /* ── Form validation ── */
-  const validate = () => {
+  /* ── Step 2 form validation ── */
+  const validateForm = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = "Full name is required";
     if (!form.email) e.email = "Email is required";
     else if (!/\S+@\S+\.\S+/.test(form.email)) e.email = "Enter a valid email";
     if (!form.password) e.password = "Password is required";
-    else if (form.password.length < 6) e.password = "Password must be at least 6 characters";
+    else if (form.password.length < 8) e.password = "Password must be at least 8 characters";
+    else if (!/(?=.*[A-Za-z])(?=.*\d)/.test(form.password)) e.password = "Password must contain letters and numbers";
     if (form.password !== form.confirmPassword) e.confirmPassword = "Passwords do not match";
     if (!form.agreeTerms) e.agreeTerms = "You must agree to the terms";
     return e;
   };
 
+  /* ── Submit: validate → send OTP → navigate to OTP page ── */
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const errs = validate();
+    const errs = validateForm();
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setApiError("");
     setLoading(true);
     try {
-      const data = await api.post("/auth/signup", {
-        name: form.name,
-        email: form.email,
-        password: form.password,
-        role,
+      await api.post("/auth/send-otp", { email: form.email });
+      // Email in URL survives refresh; sensitive data stays in router state only.
+      navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`, {
+        state: { password: form.password, name: form.name, role },
       });
-      // Store token + user info
-      localStorage.setItem("hf_token", data.token);
-      localStorage.setItem("hf_role", data.role);
-      localStorage.setItem("hf_name", data.name);
-      setSuccess(true);
-      setTimeout(() => {
-        navigate(data.role === "organizer" ? "/organizer-dashboard" : "/student/dashboard");
-      }, 1200);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Something went wrong";
-      setApiError(msg);
+      // 409 = already registered → show error and stop
+      if ((err as { status?: number }).status === 409) {
+        setApiError((err as Error).message);
+        return;
+      }
+      // 429 = OTP already sent recently (backend cooldown).
+      // A valid OTP is waiting in the inbox, so navigate anyway.
+      if ((err as { status?: number }).status === 429) {
+        navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`, {
+          state: { password: form.password, name: form.name, role },
+        });
+        return;
+      }
+      // Any other error — show it
+      setApiError((err as Error).message || "Failed to send OTP. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -141,13 +145,13 @@ export default function AnimatedSignupPage() {
 
   /* ── Captions per step ── */
   const captions = [
-    { title: "Join HackFlow Today",   subtitle: "Select your role to start your hackathon journey." },
-    { title: "Almost There!",         subtitle: "Fill in your details to create your account." },
+    { title: "Join HackFlow Today",  subtitle: "Select your role to start your hackathon journey." },
+    { title: "Almost There!",        subtitle: "Fill in your details to create your account." },
   ];
 
   return (
     <div className="h-screen overflow-hidden bg-gray-50 flex">
-      {/* Left — shared animated characters */}
+      {/* Left — animated characters panel */}
       <AnimatedCharactersPanel
         isTyping={isTyping}
         passwordValue={form.password || form.confirmPassword}
@@ -156,7 +160,7 @@ export default function AnimatedSignupPage() {
       />
 
       {/* Right — form panel */}
-      <div className="flex-1 flex items-center justify-center overflow-y-auto px-4 py-6">
+      <div className="flex-1 flex items-center justify-center overflow-y-auto px-4 py-6 relative">
         <div className="w-full max-w-md bg-white rounded-2xl shadow-[0_4px_24px_rgba(0,0,0,0.08)] p-7">
 
           {/* Logo */}
@@ -200,7 +204,7 @@ export default function AnimatedSignupPage() {
                   value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
                   onFocus={() => setIsTyping(true)} onBlur={() => setIsTyping(false)} error={errors.email} />
 
-                {/* Password — eye controls only this field */}
+                {/* Password */}
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-gray-700">Password</label>
                   <div className="relative">
@@ -209,6 +213,7 @@ export default function AnimatedSignupPage() {
                       type={(showPwd || showConfirm) ? "text" : "password"}
                       placeholder="••••••••" value={form.password}
                       onChange={e => setForm({ ...form, password: e.target.value })}
+                      onFocus={() => setIsTyping(true)} onBlur={() => setIsTyping(false)}
                       className={`w-full pl-11 pr-11 py-3 text-sm text-gray-900 bg-gray-50 border ${errors.password ? "border-red-400 focus:ring-red-500" : "border-gray-200 focus:ring-royal"} rounded-xl focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-transparent transition-all duration-200 placeholder:text-gray-400`}
                     />
                     <button type="button" onClick={toggleShowPwd}
@@ -219,7 +224,7 @@ export default function AnimatedSignupPage() {
                   {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
                 </div>
 
-                {/* Confirm Password — eye reveals BOTH fields when toggled on */}
+                {/* Confirm Password */}
                 <div className="space-y-1.5">
                   <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
                   <div className="relative">
@@ -259,31 +264,17 @@ export default function AnimatedSignupPage() {
                   className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-royal rounded-xl hover:bg-royal-light transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-60 cursor-pointer">
                   {loading
                     ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    : <>Create Account <ArrowRight size={16} /></>}
+                    : <>Send Verification Code <ArrowRight size={16} /></>}
                 </button>
               </form>
-
-              {/* Success state */}
-              {success && (
-                <div className="text-center py-4">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-emerald-50 mb-4">
-                    <ShieldCheck size={28} className="text-emerald-500" />
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-900 mb-1">Account Created!</h2>
-                  <p className="text-sm text-gray-500">Redirecting to your dashboard...</p>
-                  <div className="w-5 h-5 mx-auto mt-3 border-2 border-royal/30 border-t-royal rounded-full animate-spin" />
-                </div>
-              )}
             </>
           )}
 
           {/* Sign in link */}
-          {!success && (
-            <p className="text-center text-sm text-gray-500 mt-5">
-              Already have an account?{" "}
-              <Link to="/login" className="font-semibold text-royal hover:text-royal-light transition-colors">Sign In</Link>
-            </p>
-          )}
+          <p className="text-center text-sm text-gray-500 mt-5">
+            Already have an account?{" "}
+            <Link to="/login" className="font-semibold text-royal hover:text-royal-light transition-colors">Sign In</Link>
+          </p>
 
         </div>
       </div>

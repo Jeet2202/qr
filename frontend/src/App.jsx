@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import LandingPage from './pages/common/LandingPage';
 import AnimatedLoginPage from './pages/animated-characters-login-page';
 import AnimatedSignupPage from './pages/AnimatedSignupPage';
+import OtpVerificationPage from './pages/OtpVerificationPage';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import OrganizerDashboard from './pages/organizer/OrganizerDashboard';
 import CreateHackathon from './pages/organizer/CreateHackathon';
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/"                    element={<LandingPage />} />
         <Route path="/login"               element={<AnimatedLoginPage />} />
         <Route path="/signup"              element={<AnimatedSignupPage />} />
+        <Route path="/verify-otp"           element={<OtpVerificationPage />} />
         <Route path="/admin-dashboard"     element={<AdminDashboard />} />
         <Route path="/organizer-dashboard" element={<OrganizerDashboard />} />
         <Route path="/organizer/create"    element={<CreateHackathon />} />

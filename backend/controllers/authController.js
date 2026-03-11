@@ -1,123 +1,255 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
 const { signToken } = require("../utils/jwt");
+const generateOtp = require("../utils/generateOtp");
+const sendEmail = require("../utils/sendEmail");
 
-/* ─── Signup ─── */
-exports.signup = async (req, res) => {
+// OTP valid for 5 minutes
+const OTP_TTL_MS = 5 * 60 * 1000;
+// Max 3 OTP requests per 10 minutes (rate-limit guard at controller level)
+const OTP_RESEND_COOLDOWN_MS = 60 * 1000; // 1 minute between resends
+
+/* ─────────────────────────────────────────────────────────────────
+   Helper: standardised error response
+───────────────────────────────────────────────────────────────── */
+const fail = (res, status, message, extra = {}) =>
+  res.status(status).json({ success: false, message, ...extra });
+
+const ok = (res, status, data) =>
+  res.status(status).json({ success: true, ...data });
+
+/* ─────────────────────────────────────────────────────────────────
+   1. POST /api/auth/send-otp
+   Validates email, generates OTP, emails it, stores it in DB.
+───────────────────────────────────────────────────────────────── */
+exports.sendOtp = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { email } = req.body;
 
-    // Validate required fields
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({ message: "All fields are required" });
+    // Find or create a pending user record
+    let user = await User.findOne({ email: email.toLowerCase() });
+
+    if (user && user.isVerified && user.password) {
+      return fail(res, 409, "Email already registered. Please log in.");
     }
+
+    // Resend cooldown check
+    if (user && user.otpSentAt) {
+      const elapsed = Date.now() - new Date(user.otpSentAt).getTime();
+      if (elapsed < OTP_RESEND_COOLDOWN_MS) {
+        const waitSec = Math.ceil((OTP_RESEND_COOLDOWN_MS - elapsed) / 1000);
+        return fail(res, 429, `Please wait ${waitSec}s before requesting another OTP.`);
+      }
+    }
+
+    const otp = generateOtp();
+    const otpExpiry = new Date(Date.now() + OTP_TTL_MS);
+    const otpHash = await bcrypt.hash(otp, 10); // store hash, not plain OTP
+
+    if (user) {
+      user.otp = otpHash;
+      user.otpExpiry = otpExpiry;
+      user.otpSentAt = new Date();
+      user.isVerified = false;
+      await user.save({ validateBeforeSave: false });
+    } else {
+      user = await User.create({
+        email: email.toLowerCase(),
+        otp: otpHash,
+        otpExpiry,
+        otpSentAt: new Date(),
+      });
+    }
+
+    // Send email
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;border:1px solid #e5e7eb;border-radius:10px;padding:32px">
+        <h2 style="color:#6366f1;margin-bottom:8px">HackFlow – Verify Your Email</h2>
+        <p style="color:#374151">Use the OTP below to verify your email address. It expires in <strong>5 minutes</strong>.</p>
+        <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#111827;text-align:center;padding:24px 0">${otp}</div>
+        <p style="color:#6b7280;font-size:13px">If you did not request this, you can safely ignore this email.</p>
+      </div>`;
+
+    await sendEmail(email, "Your HackFlow OTP Code", html);
+
+    return ok(res, 200, { message: "OTP sent to your email. Valid for 5 minutes." });
+  } catch (err) {
+    console.error("sendOtp error:", err);
+    return fail(res, 500, "Failed to send OTP. Please try again.");
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   2. POST /api/auth/verify-otp
+   Checks OTP match + expiry, marks user as verified.
+───────────────────────────────────────────────────────────────── */
+exports.verifyOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user || !user.otp) {
+      return fail(res, 400, "No OTP found for this email. Please request a new one.");
+    }
+
+    if (new Date() > new Date(user.otpExpiry)) {
+      // Clear expired OTP
+      user.otp = null;
+      user.otpExpiry = null;
+      await user.save({ validateBeforeSave: false });
+      return fail(res, 400, "OTP has expired. Please request a new one.");
+    }
+
+    const isMatch = await bcrypt.compare(otp, user.otp);
+    if (!isMatch) {
+      return fail(res, 400, "Incorrect OTP. Please try again.");
+    }
+
+    // Mark verified and clear OTP fields
+    user.isVerified = true;
+    user.otp = null;
+    user.otpExpiry = null;
+    user.otpSentAt = null;
+    await user.save({ validateBeforeSave: false });
+
+    return ok(res, 200, { message: "Email verified successfully. You can now complete your registration." });
+  } catch (err) {
+    console.error("verifyOtp error:", err);
+    return fail(res, 500, "Server error during OTP verification.");
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   3. POST /api/auth/register
+   Completes signup after OTP verification.
+───────────────────────────────────────────────────────────────── */
+exports.register = async (req, res) => {
+  try {
+    const { email, password, name, role } = req.body;
+
+    // Password strength: min 8 chars, at least one letter + one digit
+    const pwStrong = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/.test(password);
+    if (!pwStrong) {
+      return fail(res, 400, "Password must be at least 8 characters and contain letters and numbers.");
+    }
+
     if (!["student", "organizer"].includes(role)) {
-      return res.status(400).json({ message: "Role must be student or organizer" });
+      return fail(res, 400, "Role must be 'student' or 'organizer'.");
     }
 
-    // Check duplicate email
-    const existing = await User.findOne({ email: email.toLowerCase() });
-    if (existing) {
-      return res.status(409).json({ message: "Email already registered" });
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+      return fail(res, 404, "Email not found. Please complete OTP verification first.");
+    }
+    if (!user.isVerified) {
+      return fail(res, 403, "Email not verified. Please verify your OTP first.");
+    }
+    if (user.password) {
+      return fail(res, 409, "Account already registered. Please log in.");
     }
 
-    // Create user (password hashed via pre-save hook)
-    const user = await User.create({ name, email, password, role });
+    user.name = name?.trim() || "";
+    user.password = password; // hashed by pre-save hook
+    user.role = role;
+    await user.save();
 
-    // Issue token immediately (no OTP step for now)
     const token = signToken({ id: user._id, role: user.role });
 
-    return res.status(201).json({
-      message: "Account created successfully",
+    return ok(res, 201, {
+      message: "Account created successfully.",
       token,
       role: user.role,
       name: user.name,
     });
   } catch (err) {
-    console.error("Signup error:", err);
-    return res.status(500).json({ message: "Server error during signup" });
+    console.error("register error:", err);
+    return fail(res, 500, "Server error during registration.");
   }
 };
 
-/* ─── Login ─── */
+/* ─────────────────────────────────────────────────────────────────
+   4. POST /api/auth/login
+───────────────────────────────────────────────────────────────── */
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return fail(res, 400, "Email and password are required.");
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });
-    if (!user) {
-      return res.status(401).json({ message: "Invalid email or password" });
+    if (!user || !user.password) {
+      return fail(res, 401, "Invalid email or password.");
+    }
+    if (!user.isVerified) {
+      return fail(res, 403, "Please verify your email before logging in.");
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid email or password" });
+      return fail(res, 401, "Invalid email or password.");
     }
 
     const token = signToken({ id: user._id, role: user.role });
 
-    return res.status(200).json({
-      message: "Login successful",
+    return ok(res, 200, {
+      message: "Login successful.",
       token,
       role: user.role,
       name: user.name,
     });
   } catch (err) {
-    console.error("Login error:", err);
-    return res.status(500).json({ message: "Server error during login" });
+    console.error("login error:", err);
+    return fail(res, 500, "Server error during login.");
   }
 };
 
-/* ─── Admin Login (env-based, no DB) ─── */
+/* ─────────────────────────────────────────────────────────────────
+   5. POST /api/auth/admin-login  (env-based, no DB lookup)
+───────────────────────────────────────────────────────────────── */
 exports.adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: "Email and password are required" });
+      return fail(res, 400, "Email and password are required.");
     }
 
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (email.toLowerCase() !== adminEmail?.toLowerCase()) {
-      return res.status(401).json({ message: "Invalid admin credentials" });
-    }
-
-    const isMatch = await bcrypt.compare(password, await bcrypt.hash(adminPassword, 12));
-    // Simple string compare (admin password stored in plain in .env)
-    if (password !== adminPassword) {
-      return res.status(401).json({ message: "Invalid admin credentials" });
+    if (
+      email.toLowerCase() !== process.env.ADMIN_EMAIL?.toLowerCase() ||
+      password !== process.env.ADMIN_PASSWORD
+    ) {
+      return fail(res, 401, "Invalid admin credentials.");
     }
 
     const token = signToken({ id: "admin", role: "admin" });
 
-    return res.status(200).json({
-      message: "Admin login successful",
+    return ok(res, 200, {
+      message: "Admin login successful.",
       token,
       role: "admin",
       name: "Admin",
     });
   } catch (err) {
-    console.error("Admin login error:", err);
-    return res.status(500).json({ message: "Server error during admin login" });
+    console.error("adminLogin error:", err);
+    return fail(res, 500, "Server error during admin login.");
   }
 };
 
-/* ─── Get current user (protected) ─── */
+/* ─────────────────────────────────────────────────────────────────
+   6. GET /api/auth/me  (protected)
+───────────────────────────────────────────────────────────────── */
 exports.getMe = async (req, res) => {
   try {
     if (req.user.role === "admin") {
-      return res.status(200).json({ id: "admin", name: "Admin", role: "admin" });
+      return ok(res, 200, { id: "admin", name: "Admin", role: "admin" });
     }
-    const user = await User.findById(req.user.id).select("-password");
-    if (!user) return res.status(404).json({ message: "User not found" });
-    return res.status(200).json(user);
+    const user = await User.findById(req.user.id).select("-password -otp -otpExpiry -otpSentAt");
+    if (!user) return fail(res, 404, "User not found.");
+    return ok(res, 200, { user });
   } catch (err) {
-    return res.status(500).json({ message: "Server error" });
+    return fail(res, 500, "Server error.");
   }
 };

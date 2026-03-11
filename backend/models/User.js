@@ -5,8 +5,8 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, "Name is required"],
       trim: true,
+      default: "",
     },
     email: {
       type: String,
@@ -17,30 +17,44 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
       minlength: 6,
+      default: null,
     },
     role: {
       type: String,
       enum: ["student", "organizer"],
-      required: true,
+      default: "student",
     },
+
+    // ── OTP Verification ──────────────────────────────────────────
     isVerified: {
       type: Boolean,
-      default: true, // OTP verification skipped for now
+      default: false,
+    },
+    otp: {
+      type: String,
+      default: null,
+    },
+    otpExpiry: {
+      type: Date,
+      default: null,
+    },
+    otpSentAt: {
+      type: Date,
+      default: null,
     },
   },
   { timestamps: true }
 );
 
-// Hash password before saving
+// ── Hash password before saving ──────────────────────────────────
 userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
+  if (!this.isModified("password") || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
-// Compare plaintext password with hash
+// ── Compare plaintext password with stored hash ──────────────────
 userSchema.methods.comparePassword = async function (candidate) {
   return bcrypt.compare(candidate, this.password);
 };
