@@ -11,6 +11,7 @@ import Dashboard from './pages/student/Dashboard';
 import Profile from './pages/student/Profile';
 import HackathonDetails from './pages/student/HackathonDetails';
 import Certificates from './pages/student/Certificates';
+import PptReview from './pages/organizer/PptReview';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/organizer/manage"    element={<ManageHackathon />} />
         <Route path="/organizer/event/:id" element={<EventManagement />} />
         <Route path="/organizer/events"    element={<EventManagement />} />
+        <Route path="/organizer/ppt-review" element={<PptReview />} />
 
         {/* Student */}
         <Route path="/student/dashboard" element={<Dashboard />} />

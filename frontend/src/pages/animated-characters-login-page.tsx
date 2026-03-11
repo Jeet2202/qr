@@ -59,7 +59,7 @@ export default function AnimatedLoginPage() {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     setLoading(true);
-    setTimeout(() => { setLoading(false); navigate("/student-dashboard"); }, 1200);
+    setTimeout(() => { setLoading(false); navigate("/student/dashboard"); }, 1200);
   };
 
   return (
