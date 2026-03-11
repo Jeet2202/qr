@@ -3,29 +3,8 @@ import { useParams } from 'react-router-dom';
 import { ChevronDown, CheckCircle2, AlertTriangle } from 'lucide-react';
 import OrganizerSidebar from '../../components/OrganizerSidebar';
 
-/* ═══════════════════════ MOCK DATA ═══════════════════════ */
+/* ═══════════════════════ TIMELINE & PHASES ═══════════════════════ */
 const PHASES = ['Check-In', 'Hacking', 'Lunch', 'Judging', 'Dinner', 'Results'];
-
-const MOCK_WORKSPACES = [
-  { id: 'WS-001', floor: 'Ground Floor', type: 'Lab',  number: 'Lab 1',    workstations: 6,  note: 'Has projector',  assignedTeams: [] },
-  { id: 'WS-002', floor: 'Ground Floor', type: 'Lab',  number: 'Lab 2',    workstations: 5,  note: '',              assignedTeams: [] },
-  { id: 'WS-003', floor: 'First Floor',  type: 'Room', number: 'Room 101', workstations: 4,  note: 'AC not working', assignedTeams: [] },
-  { id: 'WS-004', floor: 'First Floor',  type: 'CR',   number: 'CR-A',     workstations: 8,  note: '',              assignedTeams: [] },
-  { id: 'WS-005', floor: 'Basement',     type: 'Hall', number: 'Hall B',   workstations: 10, note: 'Stage setup',   assignedTeams: [] },
-];
-
-const MOCK_TEAMS = [
-  { id: 'T001', name: 'ByteForce',    college: 'BITS Pilani',    members: 2, entered: true,  entryTime: '9:42 AM', memberNames: ['Arjun Mehta', 'Priya Sharma'] },
-  { id: 'T002', name: 'NullPointers', college: 'IIT Bombay',     members: 2, entered: true,  entryTime: '9:51 AM', memberNames: ['Rohan Das', 'Sneha Kulkarni'] },
-  { id: 'T003', name: '404Found',     college: 'NIT Trichy',     members: 2, entered: false, entryTime: null,      memberNames: ['Karan Singh', 'Anjali Nair'] },
-  { id: 'T004', name: 'StackSmash',   college: 'IIIT Hyderabad', members: 2, entered: false, entryTime: null,      memberNames: ['Dev Patel', 'Meera Iyer'] },
-  { id: 'T005', name: 'DevDynamos',   college: 'VIT Vellore',    members: 2, entered: false, entryTime: null,      memberNames: ['Rahul Gupta', 'Sneha Reddy'] },
-];
-
-const MOCK_SOS = [
-  { id: 'S001', name: 'Dev Patel',  workspace: 'Lab 1',    message: 'Projector not working',  time: '2 min ago' },
-  { id: 'S002', name: 'Meera Iyer', workspace: 'Room 204', message: 'Need extension board',   time: '5 min ago' },
-];
 
 // Timeline with 24h minutes for auto-advance
 const TIMELINE_DEF = [
@@ -65,7 +44,7 @@ function Toast({ t }) {
 }
 
 /* ═══════════════════════ EVENT HEADER  ═══════════════════════ */
-function EventHeader({ hackId, timeline }) {
+function EventHeader({ hackId, hackathon, timeline }) {
   const activePhase = 1; // for phase stepper (static)
 
   return (
@@ -79,11 +58,11 @@ function EventHeader({ hackId, timeline }) {
               <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
               LIVE
             </span>
-            <span style={{ fontSize: '13px', color: '#94a3b8' }}>ID: {hackId || 'HF-001'}</span>
+            <span style={{ fontSize: '13px', color: '#94a3b8' }}>ID: {hackId}</span>
           </div>
-          <h1 style={{ fontSize: 'clamp(20px,3vw,28px)', fontWeight: 800, color: '#0A1628', margin: '0 0 10px 0', letterSpacing: '-0.3px' }}>HackFlow Spring Invitational</h1>
+          <h1 style={{ fontSize: 'clamp(20px,3vw,28px)', fontWeight: 800, color: '#0A1628', margin: '0 0 10px 0', letterSpacing: '-0.3px' }}>{hackathon ? hackathon.title : 'No Active Event'}</h1>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0', alignItems: 'center' }}>
-            {['Mar 20, 2026', 'BITS Pilani Auditorium', '10 Teams Registered'].map((v, i, arr) => (
+            {[hackathon?.deadline || 'TBD', hackathon ? 'Event Ongoing' : 'No details'].map((v, i, arr) => (
               <span key={v} style={{ fontSize: '13px', color: '#64748b' }}>
                 {v}{i < arr.length - 1 && <span style={{ margin: '0 10px', color: '#cbd5e1' }}>|</span>}
               </span>
@@ -142,7 +121,7 @@ function EventHeader({ hackId, timeline }) {
 }
 
 /* ═══════════════════════ SECTION 1 — WORKSPACE ASSIGNMENT ═══════════════════════ */
-function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
+function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast, hackId }) {
   const [statusFilter, setStatusFilter] = useState('All');
   const [showAdd, setShowAdd]           = useState(false);
   const [assigningId, setAssigningId]   = useState(null);
@@ -153,7 +132,7 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
 
   /* ---- helpers ---- */
   const assignedTeamIds = workspaces.flatMap(w => w.assignedTeams.map(t => t.teamId));
-  const unassignedTeams = teams.filter(t => !assignedTeamIds.includes(t.id));
+  const unassignedTeams = teams.filter(t => !assignedTeamIds.includes(t.teamId));
 
   const wsStatus = (ws) => {
     const used = ws.assignedTeams.reduce((s, t) => s + t.slots.length, 0);
@@ -174,14 +153,29 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
   });
 
   /* ---- add workspace ---- */
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newWS.floor || !newWS.number || !newWS.capacity) return;
-    const cap = Number(newWS.capacity);
-    const ws  = { id: `WS-${String(workspaces.length + 1).padStart(3, '0')}`, ...newWS, workstations: cap, assignedTeams: [] };
-    setWorkspaces(p => [...p, ws]);
-    showToast(`${newWS.type} ${newWS.number} added`);
-    setNewWS({ floor: '', type: 'Lab', number: '', capacity: '', note: '' });
-    setShowAdd(false);
+    const token = localStorage.getItem('hf_token');
+    try {
+      const res = await fetch(`http://localhost:5000/api/organizer/events/${hackId}/workspaces`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(newWS)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWorkspaces(p => [...p, data.workspace]);
+        showToast(`${newWS.type} ${newWS.number} added`);
+        setNewWS({ floor: '', type: 'Lab', number: '', capacity: '', note: '' });
+        setShowAdd(false);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error adding workspace');
+    }
   };
 
   /* ---- AUTO ASSIGN logic ---- */
@@ -218,35 +212,52 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
     setShowAutoModal(true);
   };
 
-  const handleAutoConfirm = () => {
+  const handleAutoConfirm = async () => {
     if (autoPreview.length === 0) return;
-    setWorkspaces(prev => {
-      let updated = prev.map(w => ({ ...w, assignedTeams: [...w.assignedTeams] }));
-      for (const a of autoPreview) {
-        updated = updated.map(w => {
-          if (w.id !== a.wsId) return w;
-          const entry = { teamId: a.team.id, teamName: a.team.name, college: a.team.college, slots: a.slots };
-          return { ...w, assignedTeams: [...w.assignedTeams, entry] };
-        });
+    const token = localStorage.getItem('hf_token');
+    
+    // Map to the format expected by the backend assign API
+    const assignments = autoPreview.map(a => ({
+      wsId: a.wsId,
+      teamId: a.team.teamId,
+      teamName: a.team.name,
+      college: a.team.college,
+      slots: a.slots
+    }));
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/organizer/events/${hackId}/workspaces/assign`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ assignments })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWorkspaces(data.workspaces);
+        const teamCount = new Set(autoPreview.map(a => a.team.teamId)).size;
+        showToast(`${teamCount} team${teamCount !== 1 ? 's' : ''} auto-assigned successfully`);
+        setShowAutoModal(false);
+        setAutoPreview([]);
       }
-      return updated;
-    });
-    const teamCount = new Set(autoPreview.map(a => a.team.id)).size;
-    showToast(`${teamCount} team${teamCount !== 1 ? 's' : ''} auto-assigned successfully`);
-    setShowAutoModal(false);
-    setAutoPreview([]);
+    } catch (err) {
+      console.error(err);
+      showToast('Error auto-assigning teams');
+    }
   };
 
   /* ---- open assign form ---- */
   const openAssignForm = (wsId) => {
     setAssigningId(wsId);
     const def = unassignedTeams[0];
-    setAssignForm({ teamId: def?.id || '', selectedSlots: new Set() });
+    setAssignForm({ teamId: def?.teamId || '', selectedSlots: new Set() });
   };
 
   /* ---- toggle a WS chip (radio — only 1 per assignment) ---- */
   const toggleSlot = (idx, ws) => {
-    if (!assigningId || assigningId !== ws.id) return;
+    if (!assigningId || assigningId !== ws.workspaceId) return;
     const occupied = occupiedSlots(ws);
     if (occupied.has(idx)) return;
     setAssignForm(f => {
@@ -257,24 +268,62 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
   };
 
   /* ---- assign ---- */
-  const handleAssign = (wsId) => {
+  const handleAssign = async (wsId) => {
     const { teamId, selectedSlots } = assignForm;
     if (!teamId || selectedSlots.size === 0) return;
-    const team = teams.find(t => t.id === teamId);
-    const ws   = workspaces.find(w => w.id === wsId);
+    const team = teams.find(t => t.teamId === teamId);
+    const ws   = workspaces.find(w => w.workspaceId === wsId);
     const slots = [...selectedSlots].sort((a, b) => a - b);
-    const entry = { teamId: team.id, teamName: team.name, college: team.college, slots };
-    setWorkspaces(p => p.map(w => w.id === wsId ? { ...w, assignedTeams: [...w.assignedTeams, entry] } : w));
-    showToast(`${team.name} assigned to ${ws.number} · ${slots.length} workstation${slots.length !== 1 ? 's' : ''} allocated`);
-    setAssigningId(null);
-    setAssignForm({});
+    
+    const token = localStorage.getItem('hf_token');
+    
+    try {
+      const res = await fetch(`http://localhost:5000/api/organizer/events/${hackId}/workspaces/assign`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          assignments: [{
+            wsId,
+            teamId: team.teamId,
+            teamName: team.name,
+            college: team.college,
+            slots
+          }] 
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWorkspaces(data.workspaces);
+        showToast(`${team.name} assigned to ${ws.number}`);
+        setAssigningId(null);
+        setAssignForm({});
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error assigning team');
+    }
   };
 
   /* ---- remove team ---- */
-  const removeTeam = (wsId, teamId) => {
-    const team = workspaces.find(w => w.id === wsId)?.assignedTeams.find(t => t.teamId === teamId);
-    setWorkspaces(p => p.map(w => w.id !== wsId ? w : { ...w, assignedTeams: w.assignedTeams.filter(t => t.teamId !== teamId) }));
-    showToast(`${team?.teamName || 'Team'} removed`);
+  const removeTeam = async (wsId, teamId) => {
+    const token = localStorage.getItem('hf_token');
+    try {
+      const res = await fetch(`http://localhost:5000/api/organizer/events/${hackId}/workspaces/${wsId}/teams/${teamId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWorkspaces(data.workspaces);
+        showToast(`Team removed`);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error removing team');
+    }
   };
 
   /* ---- status colors ---- */
@@ -458,11 +507,11 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
           const usedCount= occupied.size;
           const avail    = ws.workstations - usedCount;
           const pct      = ws.workstations > 0 ? Math.round((usedCount / ws.workstations) * 100) : 0;
-          const isAssigning = assigningId === ws.id;
+          const isAssigning = assigningId === ws.workspaceId;
           const pickable    = unassignedTeams;
 
           return (
-            <div key={ws.id} className="ws-card"
+            <div key={ws.workspaceId} className="ws-card"
               style={{ background: BG[st], border: `1px solid ${BORDER[st]}`, borderLeft: `4px solid ${LBORDER[st]}`, borderRadius: '14px', padding: '18px', transition: 'all .2s', display: 'flex', flexDirection: 'column' }}>
 
               {/* ── Card header ── */}
@@ -499,7 +548,7 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#1E64FF', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {t.teamName} <span style={{ fontWeight: 400, color: '#64748b' }}>· {t.college} · {t.slots.length} WS</span>
                   </span>
-                  <button onClick={() => removeTeam(ws.id, t.teamId)}
+                  <button onClick={() => removeTeam(ws.workspaceId, t.teamId)}
                     style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '6px', color: '#ef4444', cursor: 'pointer', fontSize: '12px', fontWeight: 700, padding: '3px 8px', flexShrink: 0 }}>×</button>
                 </div>
               ))}
@@ -543,7 +592,7 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
                       onChange={e => setAssignForm(f => ({ ...f, teamId: e.target.value, selectedSlots: new Set() }))}
                       style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: '1.5px solid #e2e8f0', fontSize: '13px', background: '#fff', cursor: 'pointer', outline: 'none' }}>
                       <option value="">Select team...</option>
-                      {pickable.map(t => <option key={t.id} value={t.id}>{t.name} · {t.college}</option>)}
+                      {pickable.map(t => <option key={t.teamId} value={t.teamId}>{t.name} · {t.college}</option>)}
                     </select>
                   </div>
                   <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>
@@ -552,7 +601,7 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
                       : <span style={{ color: '#f59e0b' }}>Click chips above to select workstations</span>}
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => handleAssign(ws.id)}
+                    <button onClick={() => handleAssign(ws.workspaceId)}
                       disabled={!assignForm.teamId || !assignForm.selectedSlots?.size}
                       style={{ flex: 1, padding: '8px 12px', borderRadius: '9px', background: assignForm.teamId && assignForm.selectedSlots?.size ? 'linear-gradient(135deg,#1E64FF,#4D8EFF)' : '#e2e8f0', color: assignForm.teamId && assignForm.selectedSlots?.size ? '#fff' : '#94a3b8', border: 'none', fontSize: '13px', fontWeight: 700, cursor: assignForm.teamId && assignForm.selectedSlots?.size ? 'pointer' : 'not-allowed' }}>Assign</button>
                     <button onClick={() => { setAssigningId(null); setAssignForm({}); }}
@@ -562,7 +611,7 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
               ) : (
                 <div style={{ display: 'flex', gap: '8px' }}>
                   {pickable.length > 0 && avail > 0 && (
-                    <button onClick={() => openAssignForm(ws.id)}
+                    <button onClick={() => openAssignForm(ws.workspaceId)}
                       style={{ flex: 1, padding: '9px 12px', borderRadius: '9px', background: 'linear-gradient(135deg,#1E64FF,#4D8EFF)', color: '#fff', border: 'none', fontSize: '13px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Assign Team</button>
                   )}
                 </div>
@@ -576,15 +625,34 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast }) {
 }
 
 /* ═══════════════════════ SECTION 2a — TEAM ENTRY PANEL ═══════════════════════ */
-function TeamEntryPanel({ teams, memberStatus, setMemberStatus, showToast }) {
+function TeamEntryPanel({ teams, setTeams, showToast, hackId }) {
   const [expandedTeam, setExpandedTeam] = useState(null);
 
   const enteredTeams = teams.filter(t => t.entered);
   const absentTeams  = teams.filter(t => !t.entered);
 
-  const toggleMember = (teamId, member) => {
-    const key = `${teamId}:${member}`;
-    setMemberStatus(p => ({ ...p, [key]: p[key] === 'absent' ? 'present' : 'absent' }));
+  const toggleMember = async (teamId, member, currentStatus) => {
+    const newStatus = currentStatus === 'absent' ? 'present' : 'absent';
+    const token = localStorage.getItem('hf_token');
+    
+    try {
+      const res = await fetch(`http://localhost:5000/api/organizer/events/${hackId}/teams/${teamId}/member`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ memberName: member, status: newStatus })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // Update local team state
+        setTeams(prev => prev.map(t => t.teamId === teamId ? data.team : t));
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error updating status');
+    }
   };
 
   return (
@@ -620,27 +688,26 @@ function TeamEntryPanel({ teams, memberStatus, setMemberStatus, showToast }) {
             <div style={{ fontSize: '12px', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.8px', marginBottom: '9px' }}>Entered ({enteredTeams.length})</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
               {enteredTeams.map(team => (
-                <div key={team.id}>
-                  <div onClick={() => setExpandedTeam(expandedTeam === team.id ? null : team.id)} className="team-card"
-                    style={{ borderLeft: '3px solid #22c55e', background: expandedTeam === team.id ? 'rgba(34,197,94,0.06)' : 'rgba(34,197,94,0.03)', borderRadius: '0 10px 10px 0', padding: '11px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all .15s' }}>
+                <div key={team.teamId}>
+                  <div onClick={() => setExpandedTeam(expandedTeam === team.teamId ? null : team.teamId)} className="team-card"
+                    style={{ borderLeft: '3px solid #22c55e', background: expandedTeam === team.teamId ? 'rgba(34,197,94,0.06)' : 'rgba(34,197,94,0.03)', borderRadius: '0 10px 10px 0', padding: '11px 14px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', transition: 'all .15s' }}>
                     <div>
                       <div style={{ fontSize: '14px', fontWeight: 700, color: '#0A1628' }}>{team.name}</div>
                       <div style={{ fontSize: '12px', color: '#64748b' }}>{team.college}</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ fontSize: '12px', fontWeight: 600, color: '#22c55e' }}>{team.entryTime}</span>
-                      <ChevronDown size={14} style={{ color: '#94a3b8', transform: expandedTeam === team.id ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
+                      <ChevronDown size={14} style={{ color: '#94a3b8', transform: expandedTeam === team.teamId ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform .2s' }} />
                     </div>
                   </div>
-                  {expandedTeam === team.id && (
+                  {expandedTeam === team.teamId && (
                     <div style={{ background: '#fafafa', borderRadius: '0 0 10px 10px', padding: '10px 14px', animation: 'slideDown .2s ease' }}>
                       {team.memberNames.map(member => {
-                        const key = `${team.id}:${member}`;
-                        const st  = memberStatus[key] || 'absent';
+                        const st  = team.memberStatus?.[member] || 'absent';
                         return (
                           <div key={member} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
                             <span style={{ fontSize: '13px', color: '#334155' }}>{member}</span>
-                            <button onClick={() => toggleMember(team.id, member)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, border: 'none', cursor: 'pointer', background: st === 'present' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: st === 'present' ? '#16a34a' : '#dc2626' }}>
+                            <button onClick={() => toggleMember(team.teamId, member, st)} style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 700, border: 'none', cursor: 'pointer', background: st === 'present' ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: st === 'present' ? '#16a34a' : '#dc2626' }}>
                               {st === 'present' ? 'Present' : 'Absent'}
                             </button>
                           </div>
@@ -662,7 +729,7 @@ function TeamEntryPanel({ teams, memberStatus, setMemberStatus, showToast }) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '240px', overflowY: 'auto' }}>
               {absentTeams.map(team => (
-                <div key={team.id} style={{ borderLeft: '3px solid #ef4444', background: 'rgba(239,68,68,0.04)', borderRadius: '0 10px 10px 0', padding: '11px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={team.teamId} style={{ borderLeft: '3px solid #ef4444', background: 'rgba(239,68,68,0.04)', borderRadius: '0 10px 10px 0', padding: '11px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#0A1628' }}>{team.name}</div>
                     <div style={{ fontSize: '12px', color: '#ef4444' }}>{team.college} · Not yet checked in</div>
@@ -681,10 +748,22 @@ function TeamEntryPanel({ teams, memberStatus, setMemberStatus, showToast }) {
 }
 
 /* ═══════════════════════ SECTION 2b — SOS PANEL ═══════════════════════ */
-function SOSPanel({ sosRequests, setSosRequests, showToast }) {
-  const resolveSOS = (id) => {
-    setSosRequests(p => p.filter(r => r.id !== id));
-    showToast('SOS request resolved');
+function SOSPanel({ sosRequests, setSosRequests, showToast, hackId }) {
+  const resolveSOS = async (sosId) => {
+    const token = localStorage.getItem('hf_token');
+    try {
+      const res = await fetch(`http://localhost:5000/api/organizer/events/${hackId}/sos/${sosId}/resolve`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setSosRequests(p => p.filter(r => r.sosId !== sosId));
+        showToast('SOS request resolved');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error resolving SOS');
+    }
   };
 
   return (
@@ -713,7 +792,7 @@ function SOSPanel({ sosRequests, setSosRequests, showToast }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {sosRequests.map(r => (
-              <div key={r.id} style={{ borderLeft: '4px solid #ef4444', background: 'rgba(239,68,68,0.04)', borderRadius: '0 14px 14px 0', padding: '14px 16px', border: '1px solid rgba(239,68,68,0.1)', borderLeft: '4px solid #ef4444' }}>
+              <div key={r.sosId} style={{ borderLeft: '4px solid #ef4444', background: 'rgba(239,68,68,0.04)', borderRadius: '0 14px 14px 0', padding: '14px 16px', border: '1px solid rgba(239,68,68,0.1)', borderLeft: '4px solid #ef4444' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#0A1628', marginBottom: '3px' }}>
@@ -722,7 +801,7 @@ function SOSPanel({ sosRequests, setSosRequests, showToast }) {
                     <div style={{ fontSize: '13px', color: '#ef4444', fontStyle: 'italic', marginBottom: '4px' }}>"{r.message}"</div>
                     <div style={{ fontSize: '12px', color: '#94a3b8' }}>{r.time}</div>
                   </div>
-                  <button onClick={() => resolveSOS(r.id)}
+                  <button onClick={() => resolveSOS(r.sosId)}
                     style={{ padding: '7px 15px', borderRadius: '9px', background: 'rgba(34,197,94,0.1)', color: '#16a34a', border: '1px solid rgba(34,197,94,0.2)', fontSize: '13px', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
                     Resolve
                   </button>
@@ -738,12 +817,14 @@ function SOSPanel({ sosRequests, setSosRequests, showToast }) {
 
 /* ═══════════════════════ MAIN ═══════════════════════ */
 export default function EventManagement() {
-  const { id: hackathonId } = useParams();
+  const { id: hackathonIdParam } = useParams();
+  const hackathonId = hackathonIdParam || 'HF-001';
+  
   const [sbOpen, setSbOpen]             = useState(true);
-  const [workspaces, setWorkspaces]     = useState(MOCK_WORKSPACES);
-  const [teams]                         = useState(MOCK_TEAMS);
-  const [memberStatus, setMemberStatus] = useState({});
-  const [sosRequests, setSosRequests]   = useState(MOCK_SOS);
+  const [workspaces, setWorkspaces]     = useState([]);
+  const [teams, setTeams]               = useState([]);
+  const [sosRequests, setSosRequests]   = useState([]);
+  const [hackathon, setHackathon]       = useState(null);
   const [toast, setToast]               = useState(null);
   // Real-time timeline — recompute every 30 seconds
   const [timeline, setTimeline]         = useState(() => computeTimeline(nowMinutes()));
@@ -753,6 +834,55 @@ export default function EventManagement() {
     const iv = setInterval(() => setTimeline(computeTimeline(nowMinutes())), 30_000);
     return () => clearInterval(iv);
   }, []);
+
+  const fetchData = async () => {
+    const token = localStorage.getItem('hf_token');
+    try {
+      const res = await fetch(`http://localhost:5000/api/organizer/events/${hackathonId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWorkspaces(data.workspaces || []);
+        setTeams(data.teams || []);
+        setSosRequests(data.sosRequests || []);
+      }
+      
+      const hackRes = await fetch(`http://localhost:5000/api/organizer/hackathons/${hackathonId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (hackRes.ok) {
+        const hData = await hackRes.json();
+        setHackathon(hData.hackathon || null);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+    // Poll every 15s for live updates
+    const iv = setInterval(fetchData, 15_000);
+    return () => clearInterval(iv);
+  }, [hackathonId]);
+
+  const handleSeed = async () => {
+    const token = localStorage.getItem('hf_token');
+    try {
+      const res = await fetch(`http://localhost:5000/api/organizer/events/${hackathonId}/seed`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        fetchData();
+        showToast('Database seeded successfully!');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error seeding database');
+    }
+  };
 
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
@@ -776,12 +906,13 @@ export default function EventManagement() {
 
       <div style={{ transition: 'padding-left .3s', paddingLeft: sbOpen ? '240px' : '64px' }}>
         <div style={{ maxWidth: '1320px', margin: '0 auto', padding: '24px 22px 100px' }}>
-          <EventHeader hackId={hackathonId || 'HF-001'} timeline={timeline} />
-          <WorkspaceSection workspaces={workspaces} setWorkspaces={setWorkspaces} teams={teams} showToast={showToast} />
+          
+          <EventHeader hackId={hackathonId || 'HF-001'} hackathon={hackathon} timeline={timeline} />
+          <WorkspaceSection workspaces={workspaces} setWorkspaces={setWorkspaces} teams={teams} showToast={showToast} hackId={hackathonId} />
           {/* Team Entry + SOS side by side */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(340px,1fr))', gap: '20px', marginBottom: '20px', alignItems: 'start' }}>
-            <TeamEntryPanel teams={teams} memberStatus={memberStatus} setMemberStatus={setMemberStatus} showToast={showToast} />
-            <SOSPanel sosRequests={sosRequests} setSosRequests={setSosRequests} showToast={showToast} />
+            <TeamEntryPanel teams={teams} setTeams={setTeams} showToast={showToast} hackId={hackathonId} />
+            <SOSPanel sosRequests={sosRequests} setSosRequests={setSosRequests} showToast={showToast} hackId={hackathonId} />
           </div>
         </div>
       </div>

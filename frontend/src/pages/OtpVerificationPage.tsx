@@ -147,14 +147,14 @@ export default function OtpVerificationPage() {
         role:     state?.role     ?? "",
       }) as { token: string; role: string; name: string };
 
-      localStorage.setItem("hf_token", data.token);
-      localStorage.setItem("hf_role",  data.role);
-      localStorage.setItem("hf_name",  data.name);
+      localStorage.removeItem("hf_token");
+      localStorage.removeItem("hf_role");
+      localStorage.removeItem("hf_name");
 
       setSuccess(true);
       setTimeout(() => {
-        navigate(data.role === "organizer" ? "/organizer-dashboard" : "/student/dashboard");
-      }, 1200);
+        navigate("/login", { replace: true });
+      }, 1500);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Verification failed. Please try again.";
       setOtpError(msg);
@@ -196,7 +196,7 @@ export default function OtpVerificationPage() {
                 <ShieldCheck size={32} className="text-emerald-500" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">Account Created!</h2>
-              <p className="text-sm text-gray-500">Redirecting to your dashboard...</p>
+              <p className="text-sm text-gray-500">Redirecting to sign in...</p>
               <div className="w-5 h-5 mx-auto mt-3 border-2 border-royal/30 border-t-royal rounded-full animate-spin" />
             </div>
           ) : (

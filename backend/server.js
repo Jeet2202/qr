@@ -12,8 +12,16 @@ connectDB();
 app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173", credentials: true }));
 app.use(express.json());
 
+const path = require("path");
+
 // Routes
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api", require("./routes/verification"));
+app.use("/api/organizer/events", require("./routes/eventRoutes"));
+app.use("/api/organizer/hackathons", require("./routes/hackathonRoutes"));
+
+// Serve uploaded proof documents (protected per route in verification.js)
+app.use("/uploads", require("express").static(path.join(__dirname, "uploads")));
 
 // Health check
 app.get("/", (req, res) => res.json({ status: "HackFlow API running 🚀" }));
