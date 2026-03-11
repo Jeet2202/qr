@@ -1,23 +1,11 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import {
-  LayoutDashboard, PlusCircle, ClipboardList, FileText,
-  CalendarCheck, Award, Settings, ChevronRight, ChevronLeft,
+  PlusCircle, FileText, CalendarCheck, Award,
   Users, Trophy, CheckCircle2, Clock, ArrowRight, Bell,
-  TrendingUp, Zap, Eye,
+  TrendingUp,
 } from 'lucide-react';
 
-/* ──────────────── SIDEBAR CONFIG ──────────────── */
-const sidebarLinks = [
-  { label: 'Dashboard',         href: '/organizer-dashboard', icon: LayoutDashboard },
-  { label: 'Create Hackathon',  href: '/organizer/create',    icon: PlusCircle },
-  { label: 'Manage Hackathons', href: '/organizer/manage',    icon: ClipboardList },
-  { label: 'PPT Review',        href: '/organizer/ppt-review',icon: FileText },
-  { label: 'Event Management',  href: '/organizer/events',    icon: CalendarCheck },
-  { label: 'Certificates',      href: '/organizer/certificates', icon: Award },
-  { label: 'Settings',          href: '/organizer/settings',  icon: Settings },
-];
-
+import OrganizerSidebar from '../../components/OrganizerSidebar';
 /* ──────────────── MOCK DATA ──────────────── */
 const stats = [
   { label: 'Hackathons Created', value: 3,   icon: Trophy,       color: 'bg-royal/5 text-royal',    ring: 'ring-royal/20' },
@@ -62,129 +50,14 @@ function StatusBadge({ status }) {
   );
 }
 
-/* ──────────────── SIDEBAR ──────────────── */
-function Sidebar({ open, onClose, onToggle }) {
-  const location = useLocation();
-  return (
-    <>
-      {/* Overlay for mobile */}
-      {open && (
-        <div className="fixed inset-0 z-20 bg-black/20 backdrop-blur-sm lg:hidden" onClick={onClose} />
-      )}
-      <aside className={`fixed top-0 left-0 z-30 h-full bg-white shadow-[2px_0_12px_rgba(0,0,0,0.06)] transition-all duration-300 flex flex-col ${open ? 'w-64' : 'w-0 lg:w-16'} overflow-hidden`}>
-        {/* Logo + collapse toggle */}
-        <div className={`flex items-center h-16 px-4 border-b border-gray-100 shrink-0 ${open ? 'gap-3' : 'justify-center'}`}>
-          <div className="w-8 h-8 rounded-lg bg-royal flex items-center justify-center shrink-0">
-            <Zap size={16} className="text-white" />
-          </div>
-          {open && (
-            <span className="flex-1 text-lg font-extrabold text-royal tracking-tight whitespace-nowrap">
-              Hack<span className="text-dark">Flow</span>
-            </span>
-          )}
-          <button
-            onClick={onToggle}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-royal hover:bg-royal/5 transition-colors shrink-0 cursor-pointer"
-            title={open ? 'Collapse sidebar' : 'Expand sidebar'}
-          >
-            {open ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
-          </button>
-        </div>
-
-        {/* Nav links */}
-        <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto">
-          {sidebarLinks.map(({ label, href, icon: Icon }) => {
-            const active = location.pathname === href;
-            return (
-              <Link
-                key={label}
-                to={href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group ${
-                  active
-                    ? 'bg-royal text-white shadow-md shadow-royal/25'
-                    : 'text-gray-600 hover:bg-royal/5 hover:text-royal'
-                }`}
-                title={!open ? label : undefined}
-              >
-                <Icon size={18} className="shrink-0" />
-                {open && <span className="whitespace-nowrap">{label}</span>}
-                {open && active && <ChevronRight size={14} className="ml-auto opacity-60" />}
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Organizer info at bottom */}
-        {open && (
-          <div className="px-3 py-4 border-t border-gray-100 shrink-0">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-royal/5">
-              <img src="https://i.pravatar.cc/40?img=12" alt="profile" className="w-8 h-8 rounded-full object-cover ring-2 ring-royal/20" />
-              <div className="overflow-hidden">
-                <p className="text-sm font-semibold text-dark truncate">Organizer</p>
-                <p className="text-xs text-gray-500 truncate">Tech Club · Verified ✓</p>
-              </div>
-            </div>
-          </div>
-        )}
-      </aside>
-    </>
-  );
-}
-
-/* ──────────────── HACKATHON CARD ──────────────── */
-function HackathonCard({ hack }) {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgba(30,58,138,0.1)] hover:-translate-y-1 transition-all duration-300 group">
-      <div className="h-1 bg-gradient-to-r from-royal to-blue-400" />
-      <div className="p-6">
-        <div className="flex justify-between items-start mb-3">
-          <h3 className="font-bold text-dark text-base leading-snug flex-1 mr-3">{hack.title}</h3>
-          <StatusBadge status={hack.status} />
-        </div>
-
-        <div className="flex gap-4 mb-4 text-sm text-gray-500">
-          <span className="flex items-center gap-1"><Users size={13} /> {hack.participants}</span>
-          <span className="flex items-center gap-1"><FileText size={13} /> {hack.submissions}</span>
-          <span className="flex items-center gap-1"><Trophy size={13} /> {hack.prize}</span>
-        </div>
-
-        <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-5">
-          <Clock size={12} />
-          Deadline: {hack.deadline}
-        </div>
-
-        <div className="flex gap-2">
-          <Link
-            to={`/organizer/manage/${hack.id}`}
-            className="flex-1 text-center py-2 rounded-lg text-xs font-semibold text-white bg-royal hover:bg-royal-light transition-all duration-200 shadow-sm hover:shadow-md"
-          >
-            Manage
-          </Link>
-          <Link
-            to={`/organizer/ppt-review/${hack.id}`}
-            className="flex-1 text-center py-2 rounded-lg text-xs font-semibold text-royal border border-royal/20 hover:bg-royal/5 hover:border-royal transition-all duration-200"
-          >
-            Review PPT
-          </Link>
-          <button className="p-2 rounded-lg text-gray-400 hover:text-royal hover:bg-royal/5 transition-colors border border-gray-100">
-            <Eye size={14} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ──────────────── MAIN DASHBOARD ──────────────── */
 export default function OrganizerDashboard() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-
   return (
     <div className="min-h-screen bg-light-gray font-sans">
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} onToggle={() => setSidebarOpen(s => !s)} />
+      <OrganizerSidebar />
 
       {/* Main content area shifts right when sidebar is open */}
-      <div className={`transition-all duration-300 ${sidebarOpen ? 'lg:pl-64' : 'lg:pl-16'}`}>
+      <div className="transition-all duration-300 lg:pl-60">
 
         {/* Page content */}
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -271,20 +144,7 @@ export default function OrganizerDashboard() {
           {/* ── Hackathon List + Activity ── */}
           <div className="grid lg:grid-cols-3 gap-6">
 
-            {/* Hackathon Cards — 2/3 width */}
-            <div className="lg:col-span-2">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-dark">Your Hackathons</h2>
-                <Link to="/organizer/manage" className="text-sm font-medium text-royal hover:underline flex items-center gap-1">
-                  View all <ArrowRight size={14} />
-                </Link>
-              </div>
-              <div className="space-y-4">
-                {hackathons.map(hack => (
-                  <HackathonCard key={hack.id} hack={hack} />
-                ))}
-              </div>
-            </div>
+  
 
             {/* Activity Feed — 1/3 width */}
             <div>
