@@ -8,46 +8,20 @@ import {
 } from 'lucide-react';
 import OrganizerSidebar from '../../components/OrganizerSidebar';
 
-/* ─── MOCK DATA ─── */
-const HACK = {
-  id: '1', title: 'HackFlow Spring Invitational', status: 'Active',
-  deadline: 'Mar 20, 2026', prize: '1,50,000', regCount: 8, subCount: 4,
-  regLink: 'https://hackflow.app/h/spring-2026',
+import { useParams } from 'react-router-dom';
+
+/* ─── DEFAULT FALLBACKS for empty states ─── */
+const DEFAULT_HACK = {
+  id: 'HF-001', title: 'New Hackathon Event', status: 'Upcoming',
+  deadline: 'TBD', prize: '0', regCount: 0, subCount: 0,
+  regLink: 'https://hackflow.app/h/tbd', setttings: { regOpen: false, subsOpen: false }
 };
-const PHASES = [
-  { label: 'Registration Open',    date: 'Mar 1',  status: 'done'    },
-  { label: 'Submissions Open',     date: 'Mar 10', status: 'active'  },
-  { label: 'Shortlist Announced',  date: 'Mar 22', status: 'upcoming'},
-  { label: 'Event Day',            date: 'Mar 25', status: 'upcoming'},
-  { label: 'Results Published',    date: 'Mar 27', status: 'upcoming'},
-];
-const TRACKS = [
-  { id: 'T1', title: 'Climate & Sustainability', teams: 2 },
-  { id: 'T2', title: 'Healthcare AI',            teams: 1 },
-  { id: 'T3', title: 'FinTech Innovation',        teams: 1 },
-];
-const ACTIVITY = [
-  { id: 1, actor: 'Arjun Mehta',    action: 'joined team ByteForce',            time: '2h ago',  type: 'join'   },
-  { id: 2, actor: 'NullPointers',   action: 'submitted MedAI project',          time: '4h ago',  type: 'submit' },
-  { id: 3, actor: 'Sneha Kulkarni', action: 'email verified',                   time: '5h ago',  type: 'verify' },
-  { id: 4, actor: '404Found',       action: 'registered for hackathon',         time: '8h ago',  type: 'reg'    },
-  { id: 5, actor: 'Dev Patel',      action: 'updated team StackSmash profile',  time: '1d ago',  type: 'update' },
-];
-const PARTICIPANTS = [
-  { id:'P001', name:'Arjun Mehta',    email:'arjun@bits.edu',    college:'BITS Pilani',    team:'ByteForce',   status:'Verified', joined:'Mar 5' },
-  { id:'P002', name:'Priya Sharma',   email:'priya@iit.ac.in',   college:'IIT Bombay',     team:'ByteForce',   status:'Verified', joined:'Mar 5' },
-  { id:'P003', name:'Rohan Das',      email:'rohan@vit.edu',     college:'VIT Vellore',    team:'NullPointers',status:'Verified', joined:'Mar 6' },
-  { id:'P004', name:'Sneha Kulkarni', email:'sneha@mit.edu',     college:'MIT Manipal',    team:'NullPointers',status:'Pending',  joined:'Mar 6' },
-  { id:'P005', name:'Karan Singh',    email:'karan@nit.ac.in',   college:'NIT Trichy',     team:'404Found',    status:'Verified', joined:'Mar 7' },
-  { id:'P006', name:'Anjali Nair',    email:'anjali@iiit.ac.in', college:'IIIT Hyderabad', team:'404Found',    status:'Verified', joined:'Mar 7' },
-  { id:'P007', name:'Dev Patel',      email:'dev@daiict.ac.in',  college:'DAIICT',         team:'StackSmash',  status:'Verified', joined:'Mar 8' },
-  { id:'P008', name:'Meera Iyer',     email:'meera@psg.edu',     college:'PSG Tech',       team:'StackSmash',  status:'Pending',  joined:'Mar 8' },
-];
-const TEAMS = [
-  { id:'T001', name:'ByteForce',   members:['Arjun Mehta','Priya Sharma'],    college:'BITS / IIT B',  submitted:true,  score:91 },
-  { id:'T002', name:'NullPointers',members:['Rohan Das','Sneha Kulkarni'],    college:'VIT / MIT',     submitted:true,  score:87 },
-  { id:'T003', name:'404Found',    members:['Karan Singh','Anjali Nair'],     college:'NIT / IIIT H',  submitted:true,  score:78 },
-  { id:'T004', name:'StackSmash',  members:['Dev Patel','Meera Iyer'],        college:'DAIICT / PSG',  submitted:false, score:null },
+const DEFAULT_PHASES = [
+  { label: 'Registration Open',    date: 'TBD',  status: 'upcoming' },
+  { label: 'Submissions Open',     date: 'TBD',  status: 'upcoming' },
+  { label: 'Shortlist Announced',  date: 'TBD',  status: 'upcoming' },
+  { label: 'Event Day',            date: 'TBD',  status: 'upcoming' },
+  { label: 'Results Published',    date: 'TBD',  status: 'upcoming' },
 ];
 
 /* ─── HELPERS ─── */
@@ -119,7 +93,8 @@ function TabBar({ active, set }) {
 }
 
 /* ─── HACK HEADER ─── */
-function HackHeader({ showToast }) {
+function HackHeader({ hack, showToast }) {
+  if (!hack) return null;
   return (
     <div className="rounded-2xl mb-6 overflow-hidden border border-gray-100 shadow-[0_2px_16px_rgba(30,100,255,0.07)]">
       {/* Gradient top strip */}
@@ -130,16 +105,16 @@ function HackHeader({ showToast }) {
           {/* Left */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2.5 mb-2 flex-wrap">
-              <SBadge s={HACK.status} />
-              <span className="text-xs text-gray-400 font-medium">ID: HF-001</span>
+              <SBadge s={hack.status || 'Upcoming'} />
+              <span className="text-xs text-gray-400 font-medium">ID: {hack.hackathonId || 'HF-001'}</span>
             </div>
-            <h1 className="text-2xl font-extrabold text-dark tracking-tight mb-3 truncate">{HACK.title}</h1>
+            <h1 className="text-2xl font-extrabold text-dark tracking-tight mb-3 truncate">{hack.title}</h1>
             <div className="flex flex-wrap gap-x-6 gap-y-2">
               {[
-                [CalendarDays, `Deadline: ${HACK.deadline}`,   'text-gray-500'],
-                [Trophy,       `Prize: ₹${HACK.prize}`,        'text-amber-600'],
-                [Users,        `${HACK.regCount} Registered`,  'text-royal'],
-                [FileText,     `${HACK.subCount} Submissions`,  'text-violet-600'],
+                [CalendarDays, `Deadline: ${hack.deadline}`,   'text-gray-500'],
+                [Trophy,       `Prize: ₹${hack.prize}`,        'text-amber-600'],
+                [Users,        `${hack.regCount || 0} Registered`,  'text-royal'],
+                [FileText,     `${hack.subCount || 0} Submissions`,  'text-violet-600'],
               ].map(([Icon, text, cls]) => (
                 <div key={text} className={`flex items-center gap-1.5 text-sm font-medium ${cls}`}>
                   <Icon size={13} className="shrink-0" />{text}
@@ -150,7 +125,7 @@ function HackHeader({ showToast }) {
 
           {/* Right — quick actions */}
           <div className="flex flex-wrap gap-2.5 shrink-0">
-            <button onClick={() => { navigator.clipboard?.writeText(HACK.regLink); showToast('Registration link copied!'); }}
+            <button onClick={() => { navigator.clipboard?.writeText(hack.regLink || ''); showToast('Registration link copied!'); }}
               className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-royal border border-royal/20 bg-royal/5 rounded-xl hover:bg-royal/10 transition-all cursor-pointer">
               <Copy size={12} /> Copy Link
             </button>
@@ -170,13 +145,13 @@ function HackHeader({ showToast }) {
 }
 
 /* ─── STATS ROW ─── */
-function StatsRow({ setTab }) {
-  const slCount = 0;
+function StatsRow({ hack, teams, setTab }) {
+  const slCount = 0; // TBD logic
   const cards = [
-    { icon: Users,    label: 'Participants', value: HACK.regCount, sub: 'registered',      color: 'text-royal bg-royal/8',         tab: 'participants', trend: '+2 this week'     },
-    { icon: Award,    label: 'Teams',        value: TEAMS.length,  sub: 'formed',          color: 'text-violet-600 bg-violet-50',  tab: 'teams',        trend: 'All formed'        },
-    { icon: FileText, label: 'Submissions',  value: HACK.subCount, sub: 'received',        color: 'text-amber-600 bg-amber-50',    tab: 'participants', trend: '4 of 4 submitted'  },
-    { icon: Star,     label: 'Shortlisted',  value: slCount,       sub: `of ${HACK.subCount}`, color: 'text-emerald-600 bg-emerald-50', tab: 'participants', trend: 'Go to PPT Review' },
+    { icon: Users,    label: 'Participants', value: hack.regCount || 0, sub: 'registered',      color: 'text-royal bg-royal/8',         tab: 'participants', trend: 'Active'     },
+    { icon: Award,    label: 'Teams',        value: teams.length || 0,  sub: 'formed',          color: 'text-violet-600 bg-violet-50',  tab: 'teams',        trend: 'Active'        },
+    { icon: FileText, label: 'Submissions',  value: hack.subCount || 0, sub: 'received',        color: 'text-amber-600 bg-amber-50',    tab: 'participants', trend: 'Active'  },
+    { icon: Star,     label: 'Shortlisted',  value: slCount,       sub: `of ${hack.subCount || 0}`, color: 'text-emerald-600 bg-emerald-50', tab: 'participants', trend: 'Go to PPT Review' },
   ];
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -199,8 +174,9 @@ function StatsRow({ setTab }) {
 }
 
 /* ─── OVERVIEW TAB ─── */
-function OverviewTab({ showToast }) {
+function OverviewTab({ hack, activity, showToast }) {
   const activityDot = { join: '#3b82f6', submit: '#22c55e', verify: '#8b5cf6', reg: '#f59e0b', update: '#64748b' };
+  const phasesData = hack.phases?.length ? hack.phases : DEFAULT_PHASES;
   return (
     <div className="space-y-5">
       <div className="grid lg:grid-cols-3 gap-5">
@@ -210,7 +186,7 @@ function OverviewTab({ showToast }) {
           <h3 className="text-sm font-bold text-dark mb-4 flex items-center gap-2">
             <Clock size={14} className="text-royal" /> Hackathon Phases
           </h3>
-          {PHASES.map((p, i) => (
+          {phasesData.map((p, i) => (
             <div key={p.label} className="flex gap-3">
               <div className="flex flex-col items-center">
                 <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${p.status === 'done' ? 'bg-emerald-500' : p.status === 'active' ? 'bg-royal ring-4 ring-royal/20' : 'bg-gray-200'}`}>
@@ -220,7 +196,7 @@ function OverviewTab({ showToast }) {
                     ? <span className="w-2 h-2 rounded-full bg-white" />
                     : <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />}
                 </div>
-                {i < PHASES.length - 1 && <div className={`w-px mt-1 mb-1 ${p.status === 'done' ? 'bg-emerald-300' : 'bg-gray-100'}`} style={{ minHeight: '20px' }} />}
+                {i < phasesData.length - 1 && <div className={`w-px mt-1 mb-1 ${p.status === 'done' ? 'bg-emerald-300' : 'bg-gray-100'}`} style={{ minHeight: '20px' }} />}
               </div>
               <div className="pb-4">
                 <p className={`text-sm font-semibold ${p.status === 'active' ? 'text-royal' : p.status === 'done' ? 'text-emerald-600' : 'text-gray-400'}`}>{p.label}</p>
@@ -258,8 +234,9 @@ function OverviewTab({ showToast }) {
               <TrendingUp size={14} className="text-violet-500" /> Recent Activity
             </h3>
             <div className="space-y-3">
-              {ACTIVITY.map(a => (
-                <div key={a.id} className="flex items-start gap-2.5">
+              {activity.length === 0 && <span className="text-xs text-gray-500 italic">No activity yet.</span>}
+              {activity.map((a, i) => (
+                <div key={a._id || i} className="flex items-start gap-2.5">
                   <div className="w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0" style={{ background: avBg(a.actor) }}>
                     {initials(a.actor)}
                   </div>
@@ -267,7 +244,7 @@ function OverviewTab({ showToast }) {
                     <p className="text-xs text-gray-700"><b>{a.actor}</b> {a.action}</p>
                     <p className="text-[10px] text-gray-400 mt-0.5">{a.time}</p>
                   </div>
-                  <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: activityDot[a.type] }} />
+                  <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: activityDot[a.type] || activityDot.update }} />
                 </div>
               ))}
             </div>
@@ -281,8 +258,9 @@ function OverviewTab({ showToast }) {
           <Grid3X3 size={14} className="text-gray-500" /> Problem Tracks
         </h3>
         <div className="grid sm:grid-cols-3 gap-3">
-          {TRACKS.map(t => (
-            <div key={t.id} className="flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 border border-gray-100">
+          {(!hack.tracks || hack.tracks.length === 0) && <span className="text-xs text-gray-500 italic px-2">No problem tracks defined.</span>}
+          {hack.tracks && hack.tracks.map(t => (
+            <div key={t.id || t.title} className="flex items-center justify-between px-4 py-3 rounded-xl bg-gray-50 border border-gray-100">
               <span className="text-sm font-semibold text-dark">{t.title}</span>
               <span className="text-xs font-bold text-royal bg-royal/8 px-2.5 py-0.5 rounded-full">{t.teams} teams</span>
             </div>
@@ -294,7 +272,7 @@ function OverviewTab({ showToast }) {
 }
 
 /* ─── PARTICIPANTS TAB ─── */
-function ParticipantsTab({ showToast }) {
+function ParticipantsTab({ participants, showToast }) {
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState('');
   const [selected, setSelected] = useState([]);
@@ -302,8 +280,8 @@ function ParticipantsTab({ showToast }) {
   const [page, setPage]       = useState(0);
   const PER = 5;
 
-  const filtered = PARTICIPANTS.filter(r =>
-    (!search || [r.name, r.email, r.college].some(v => v.toLowerCase().includes(search.toLowerCase()))) &&
+  const filtered = participants.filter(r =>
+    (!search || [r.name, r.email, r.college].some(v => v?.toLowerCase().includes(search.toLowerCase()))) &&
     (!filter || r.status === filter)
   );
   const paged = filtered.slice(page * PER, page * PER + PER);
@@ -372,9 +350,12 @@ function ParticipantsTab({ showToast }) {
               </tr>
             </thead>
             <tbody>
+              {filtered.length === 0 && (
+                <tr className="border-b border-gray-50 text-center"><td colSpan="8" className="px-4 py-8 text-sm text-gray-500 italic">No participants found.</td></tr>
+              )}
               {paged.map(r => (
-                <tr key={r.id} className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
-                  <td className="p-3"><input type="checkbox" className="accent-royal" checked={selected.includes(r.id)} onChange={() => toggleSel(r.id)} onClick={e => e.stopPropagation()} /></td>
+                <tr key={r.participantId || r._id} className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
+                  <td className="p-3"><input type="checkbox" className="accent-royal" checked={selected.includes(r.participantId || r._id)} onChange={() => toggleSel(r.participantId || r._id)} onClick={e => e.stopPropagation()} /></td>
                   <td className="px-3 py-3 cursor-pointer" onClick={() => setDrawer(r)}>
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0" style={{ background: avBg(r.name) }}>{initials(r.name)}</div>
@@ -406,10 +387,10 @@ function ParticipantsTab({ showToast }) {
 }
 
 /* ─── TEAMS TAB ─── */
-function TeamsTab() {
+function TeamsTab({ teams }) {
   const [view, setView]     = useState('grid');
   const [filter, setFilter] = useState('all');
-  const filtered = TEAMS.filter(t => filter === 'all' ? true : filter === 'submitted' ? t.submitted : !t.submitted);
+  const filtered = teams.filter(t => filter === 'all' ? true : filter === 'submitted' ? t.submitted : !t.submitted);
 
   return (
     <div>
@@ -434,8 +415,9 @@ function TeamsTab() {
 
       {view === 'grid' ? (
         <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {filtered.length === 0 && <span className="text-sm text-gray-500 italic">No teams formed yet.</span>}
           {filtered.map((t, i) => (
-            <div key={t.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_20px_rgba(30,100,255,0.09)] hover:-translate-y-0.5 transition-all duration-200">
+            <div key={t.teamId || t._id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_20px_rgba(30,100,255,0.09)] hover:-translate-y-0.5 transition-all duration-200">
               <div className="flex items-center justify-between mb-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold" style={{ background: `hsl(${i * 70 + 200},55%,55%)` }}>{t.name[0]}</div>
                 <SBadge s={t.submitted ? 'Active' : 'Pending'} />
@@ -443,7 +425,7 @@ function TeamsTab() {
               <p className="font-bold text-dark text-sm mb-0.5">{t.name}</p>
               <p className="text-xs text-gray-400 mb-3">{t.college}</p>
               <div className="space-y-1 mb-3">
-                {t.members.map(m => (
+                {t.memberNames && t.memberNames.map(m => (
                   <div key={m} className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-royal" />
                     <span className="text-xs text-gray-600">{m}</span>
@@ -476,10 +458,13 @@ function TeamsTab() {
                 </tr>
               </thead>
               <tbody>
+                {filtered.length === 0 && (
+                  <tr className="border-b border-gray-50 text-center"><td colSpan="5" className="px-4 py-8 text-sm text-gray-500 italic">No teams found.</td></tr>
+                )}
                 {filtered.map(t => (
-                  <tr key={t.id} className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
+                  <tr key={t.teamId || t._id} className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
                     <td className="px-4 py-3 text-sm font-semibold text-dark">{t.name}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{t.members.join(', ')}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{t.memberNames ? t.memberNames.join(', ') : ''}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">{t.college}</td>
                     <td className="px-4 py-3"><SBadge s={t.submitted ? 'Active' : 'Pending'} /></td>
                     <td className="px-4 py-3 text-sm font-bold" style={{ color: t.score ? sColor(t.score) : '#94a3b8' }}>{t.score ?? '—'}</td>
@@ -495,10 +480,30 @@ function TeamsTab() {
 }
 
 /* ─── SETTINGS TAB ─── */
-function SettingsTab({ showToast }) {
-  const [regOpen, setRegOpen]   = useState(true);
-  const [subsOpen, setSubsOpen] = useState(true);
+function SettingsTab({ hack, showToast }) {
+  const [regOpen, setRegOpen]   = useState(hack.settings?.regOpen ?? true);
+  const [subsOpen, setSubsOpen] = useState(hack.settings?.subsOpen ?? true);
   const [delInput, setDelInput] = useState('');
+
+  const updateSettings = async (field, value) => {
+    try {
+      const token = localStorage.getItem('hf_token');
+      const res = await fetch(`http://localhost:5000/api/organizer/hackathons/${hack.hackathonId || 'HF-001'}/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ [field]: value })
+      });
+      if (res.ok) {
+        showToast(`Settings updated`);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Action failed');
+    }
+  };
 
   return (
     <div className="space-y-5 max-w-2xl">
@@ -515,7 +520,11 @@ function SettingsTab({ showToast }) {
                 <p className="text-sm font-semibold text-dark">{label}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{desc}</p>
               </div>
-              <button onClick={() => { setVal(v => !v); showToast(label + ' ' + (val ? 'disabled' : 'enabled')); }}
+              <button onClick={() => { 
+                  const newVal = !val; 
+                  setVal(newVal); 
+                  updateSettings(label === 'Accept New Registrations' ? 'regOpen' : 'subsOpen', newVal);
+                }}
                 className="flex items-center gap-2 cursor-pointer shrink-0">
                 <span className={`text-xs font-semibold ${val ? 'text-emerald-600' : 'text-gray-400'}`}>{val ? 'On' : 'Off'}</span>
                 {val
@@ -534,9 +543,9 @@ function SettingsTab({ showToast }) {
           <h3 className="text-sm font-bold text-red-600">Danger Zone</h3>
         </div>
         <p className="text-xs text-gray-400 mb-4">This action is permanent and cannot be undone. Type the hackathon title to confirm.</p>
-        <input value={delInput} onChange={e => setDelInput(e.target.value)} placeholder={HACK.title}
+        <input value={delInput} onChange={e => setDelInput(e.target.value)} placeholder={hack.title || 'Hackathon Title'}
           className="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl mb-3 focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-300 bg-gray-50" />
-        <button disabled={delInput !== HACK.title} onClick={() => showToast('Hackathon deleted')}
+        <button disabled={delInput !== hack.title} onClick={() => showToast('Hackathon deleted')}
           className="px-5 py-2.5 text-sm font-semibold text-white bg-red-500 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2 shadow-sm">
           <Trash2 size={13} /> Delete Hackathon
         </button>
@@ -547,9 +556,40 @@ function SettingsTab({ showToast }) {
 
 /* ─── MAIN ─── */
 export default function ManageHackathon() {
+  const { id: hackathonIdParam } = useParams();
+  const hackathonId = hackathonIdParam || 'HF-001';
+
   const [sbOpen, setSbOpen] = useState(true);
   const [tab, setTab]       = useState('overview');
   const [toast, setToast]   = useState(null);
+
+  const [hackData, setHackData] = useState(DEFAULT_HACK);
+  const [participants, setParticipants] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [activities, setActivities] = useState([]);
+
+  const fetchData = async () => {
+    const token = localStorage.getItem('hf_token');
+    try {
+      const res = await fetch(`http://localhost:5000/api/organizer/hackathons/${hackathonId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setHackData(data.hackathon || DEFAULT_HACK);
+        setParticipants(data.participants || []);
+        setTeams(data.teams || []);
+        setActivities(data.activities || []);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [hackathonId]);
+
   const showToast = msg => { setToast(msg); setTimeout(() => setToast(null), 2800); };
 
   return (
@@ -564,7 +604,7 @@ export default function ManageHackathon() {
           <div className="flex items-center gap-2 text-sm">
             <Link to="/organizer-dashboard" className="text-gray-400 hover:text-royal transition-colors">Dashboard</Link>
             <ChevronRight size={13} className="text-gray-300" />
-            <span className="font-semibold text-dark truncate max-w-[240px]">{HACK.title}</span>
+            <span className="font-semibold text-dark truncate max-w-[240px]">{hackData.title || ''}</span>
           </div>
           <div className="flex items-center gap-2">
             <Link to="/organizer/ppt-review"
@@ -575,17 +615,17 @@ export default function ManageHackathon() {
         </div>
 
         <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-          <HackHeader showToast={showToast} />
-          <StatsRow setTab={setTab} />
+          <HackHeader hack={hackData} showToast={showToast} />
+          <StatsRow hack={hackData} teams={teams} setTab={setTab} />
 
           {/* Tab card */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden">
             <TabBar active={tab} set={setTab} />
             <div className="p-6">
-              {tab === 'overview'     && <OverviewTab showToast={showToast} />}
-              {tab === 'participants' && <ParticipantsTab showToast={showToast} />}
-              {tab === 'teams'        && <TeamsTab />}
-              {tab === 'settings'     && <SettingsTab showToast={showToast} />}
+              {tab === 'overview'     && <OverviewTab hack={hackData} activity={activities} showToast={showToast} />}
+              {tab === 'participants' && <ParticipantsTab participants={participants} showToast={showToast} />}
+              {tab === 'teams'        && <TeamsTab teams={teams} />}
+              {tab === 'settings'     && <SettingsTab hack={hackData} showToast={showToast} />}
             </div>
           </div>
         </main>

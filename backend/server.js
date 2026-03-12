@@ -1,23 +1,36 @@
 require("dotenv").config();
+const path    = require("path");
 const express = require("express");
-const cors = require("cors");
+const cors    = require("cors");
 const connectDB = require("./config/db");
 
 const app = express();
 
-// Connect to MongoDB Atlas
+// Connect to MongoDB
 connectDB();
 
 // Middleware
-app.use(cors({ origin: process.env.CLIENT_URL || "http://localhost:5173", credentials: true }));
-app.use(express.json());
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || /^http:\/\/localhost(:\d+)?$/.test(origin)) cb(null, true);
+    else cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Static — serve uploaded files (banner, logo, problem statements)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
-app.use("/api/auth", require("./routes/auth"));
+app.use("/api/auth",       require("./routes/auth"));
 app.use("/api/live-event", require("./routes/liveEvent"));
+app.use("/api/hackathons", require("./routes/hackathonRoutes"));
 
 // Health check
-app.get("/", (req, res) => res.json({ status: "HackFlow API running 🚀" }));
+app.get("/",           (req, res) => res.json({ status: "HackFlow API running 🚀" }));
+app.get("/api/health", (req, res) => res.json({ status: "OK" }));
 
 // 404 handler
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
