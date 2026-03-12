@@ -13,7 +13,15 @@ const safeDate = (v) => {
   return isNaN(d.getTime()) ? undefined : d;
 };
 
-const filePath = (file) => file?.path || '';
+const filePath = (file) => {
+  if (!file) return '';
+  // On Cloudinary, file.path is the full URL; on local disk it's an OS path.
+  // Normalise to a forward-slash relative URL usable in the browser.
+  const p = (file.path || '').replace(/\\/g, '/');
+  if (p.startsWith('http')) return p; // Cloudinary URL — keep as-is
+  const idx = p.lastIndexOf('uploads/');
+  return idx !== -1 ? p.slice(idx) : p;
+};
 
 /* ── CREATE ───────────────────────────────────────────── */
 const createHackathon = async (req, res) => {

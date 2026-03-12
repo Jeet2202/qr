@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -527,29 +527,27 @@ export default function HackathonDetails() {
   const [hack, setHack] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  import('react').then(({ useEffect }) => {
-    useEffect(() => {
-      axios.get(`http://localhost:5000/api/hackathons/${id}`)
-        .then(res => {
-          const dbData = res.data.data;
-          // Merge with safe mock defaults for tabs not yet fully backended
-          setHack({
-            ...dbData,
-            team: null,
-            submission: { pptUrl: '', resumeUrl: '', submissionDate: null },
-            result: null,
-            offlineEvent: null,
-            finalSubmission: null,
-            queries: []
-          });
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error(err);
-          setLoading(false);
+  useEffect(() => {
+    axios.get(`http://localhost:5000/api/hackathons/${id}`)
+      .then(res => {
+        const dbData = res.data.data;
+        // Merge with safe mock defaults for tabs not yet fully backended
+        setHack({
+          ...dbData,
+          team: null,
+          submission: { pptUrl: '', resumeUrl: '', submissionDate: null },
+          result: null,
+          offlineEvent: null,
+          finalSubmission: null,
+          queries: []
         });
-    }, [id]);
-  });
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, [id]);
 
   if (loading) {
     return (
