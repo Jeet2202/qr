@@ -24,8 +24,9 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
-app.use("/api/auth",       require("./routes/auth"));
-app.use("/api/hackathons", require("./routes/hackathonRoutes"));
+app.use("/api/auth",              require("./routes/auth"));
+app.use("/api/hackathons",        require("./routes/hackathonRoutes"));
+app.use("/api/organizer/events",  require("./routes/eventRoutes"));
 
 // Health check
 app.get("/",           (req, res) => res.json({ status: "HackFlow API running 🚀" }));

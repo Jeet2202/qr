@@ -154,7 +154,10 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast, hackId 
 
   /* ---- add workspace ---- */
   const handleAdd = async () => {
-    if (!newWS.floor || !newWS.number || !newWS.capacity) return;
+    if (!newWS.floor || !newWS.number || !newWS.capacity) {
+      showToast('Please fill in Floor, Number, and Workstations');
+      return;
+    }
     const token = localStorage.getItem('hf_token');
     try {
       const res = await fetch(`http://localhost:5000/api/organizer/events/${hackId}/workspaces`, {
@@ -171,6 +174,9 @@ function WorkspaceSection({ workspaces, setWorkspaces, teams, showToast, hackId 
         showToast(`${newWS.type} ${newWS.number} added`);
         setNewWS({ floor: '', type: 'Lab', number: '', capacity: '', note: '' });
         setShowAdd(false);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.message || `Error: ${res.status}`);
       }
     } catch (err) {
       console.error(err);
@@ -848,7 +854,7 @@ export default function EventManagement() {
         setSosRequests(data.sosRequests || []);
       }
       
-      const hackRes = await fetch(`http://localhost:5000/api/organizer/hackathons/${hackathonId}`, {
+      const hackRes = await fetch(`http://localhost:5000/api/hackathons/${hackathonId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (hackRes.ok) {
