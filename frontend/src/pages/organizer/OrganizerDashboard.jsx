@@ -1,9 +1,11 @@
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   PlusCircle, FileText, CalendarCheck, Award,
   Users, Trophy, CheckCircle2, Clock, ArrowRight, Bell,
-  TrendingUp,
+  TrendingUp, Calendar,
 } from 'lucide-react';
+import axios from 'axios';
 
 import OrganizerSidebar from '../../components/OrganizerSidebar';
 /* ──────────────── MOCK DATA ──────────────── */
@@ -14,11 +16,7 @@ const stats = [
   { label: 'Pending Approval',   value: 1,    icon: Clock,        color: 'bg-amber-50 text-amber-600',  ring: 'ring-amber-200' },
 ];
 
-const hackathons = [
-  { id: 1, title: 'AI Innovation Hackathon', status: 'Live',      participants: 120, submissions: 50,  deadline: 'Mar 25, 2026', prize: '₹2,00,000' },
-  { id: 2, title: 'Sustainability Hack',     status: 'Pending',   participants: 80,  submissions: 30,  deadline: 'Apr 10, 2026', prize: '₹1,00,000' },
-  { id: 3, title: 'HealthTech Challenge',    status: 'Completed', participants: 40,  submissions: 16,  deadline: 'Feb 28, 2026', prize: '₹75,000' },
-];
+// Remove mock hackathons array
 
 const activities = [
   { id: 1, msg: 'Admin approved your hackathon',   time: '2m ago',  type: 'success', icon: CheckCircle2 },
@@ -52,6 +50,22 @@ function StatusBadge({ status }) {
 
 /* ──────────────── MAIN DASHBOARD ──────────────── */
 export default function OrganizerDashboard() {
+  const navigate = useNavigate();
+  const [hackathons, setHackathons] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/hackathons')
+      .then(res => {
+        setHackathons(res.data.data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
   return (
     <div className="min-h-screen bg-light-gray font-sans">
       <OrganizerSidebar />
@@ -144,7 +158,60 @@ export default function OrganizerDashboard() {
           {/* ── Hackathon List + Activity ── */}
           <div className="grid lg:grid-cols-3 gap-6">
 
-  
+            {/* Hackathon List — 2/3 width */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-dark">Your Hackathons</h2>
+                <Link to="/organizer/events" className="text-sm font-bold text-royal hover:underline">View All</Link>
+              </div>
+
+              <div className="space-y-4">
+                {loading ? (
+                  <p className="text-sm text-gray-500 text-center py-6">Loading hackathons...</p>
+                ) : hackathons.length === 0 ? (
+                  <div className="bg-white rounded-2xl p-8 border border-gray-100 text-center shadow-sm">
+                    <Trophy size={40} className="text-gray-300 mx-auto mb-3" />
+                    <p className="text-gray-600 font-semibold mb-1">No Hackathons yet</p>
+                    <p className="text-sm text-gray-400 mb-4">You haven't created any hackathons.</p>
+                    <Link to="/organizer/create" className="text-sm font-bold text-royal bg-royal/10 px-4 py-2 rounded-xl">Create One Now</Link>
+                  </div>
+                ) : (
+                  hackathons.map((hack) => (
+                    <div
+                      key={hack.slug}
+                      onClick={() => navigate(`/organizer/hackathon/${hack.slug}/preview`)}
+                      className="bg-white rounded-2xl p-5 border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:border-royal/30 hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row gap-4 sm:items-center"
+                    >
+                      <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100 flex items-center justify-center border border-gray-200">
+                        {hack.logoImage ? (
+                          <img src={`http://localhost:5000/${hack.logoImage}`} alt="logo" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-gray-400 font-black text-2xl">{hack.title?.[0]}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="text-base font-bold text-dark truncate">{hack.title}</h3>
+                          <StatusBadge status="Live" />
+                        </div>
+                        <p className="text-xs text-gray-500 font-semibold mb-2">
+                          <Calendar size={12} className="inline mr-1" />
+                          Deadline: {hack.registrationDeadline ? new Date(hack.registrationDeadline).toLocaleDateString() : 'TBA'}
+                        </p>
+                        <div className="flex flex-wrap gap-4 text-xs font-semibold text-gray-400">
+                          <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">
+                            <Users size={12} /> {hack.teamSizeMin || 2}-{hack.teamSizeMax || 4} Members
+                          </span>
+                          <span className="flex items-center gap-1.5 text-royal bg-royal/5 px-2 py-0.5 rounded-lg border border-royal/10">
+                            <Trophy size={12} /> {hack.prizePool || '—'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
 
             {/* Activity Feed — 1/3 width */}
             <div>

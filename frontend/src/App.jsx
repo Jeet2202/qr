@@ -11,8 +11,11 @@ import EventManagement from './pages/organizer/EventManagement';
 import Dashboard from './pages/student/Dashboard';
 import Profile from './pages/student/Profile';
 import HackathonDetails from './pages/student/HackathonDetails';
+import HackathonPublicPage from './pages/student/HackathonPublicPage';
+import HackathonRegisterPage from './pages/student/HackathonRegisterPage';
 import Certificates from './pages/student/Certificates';
 import PptReview from './pages/organizer/PptReview';
+import OrganizerHackathonPreview from './pages/organizer/OrganizerHackathonPreview';
 
 export default function App() {
   return (
@@ -30,12 +33,17 @@ export default function App() {
         <Route path="/organizer/event/:id" element={<EventManagement />} />
         <Route path="/organizer/events"    element={<EventManagement />} />
         <Route path="/organizer/ppt-review" element={<PptReview />} />
+        <Route path="/organizer/hackathon/:slug/preview" element={<OrganizerHackathonPreview />} />
 
         {/* Student */}
         <Route path="/student/dashboard" element={<Dashboard />} />
         <Route path="/student/profile" element={<Profile />} />
         <Route path="/student/hackathon/:id" element={<HackathonDetails />} />
         <Route path="/student/certificates" element={<Certificates />} />
+
+        {/* Hackathon Public Pages (Unstop-style template) */}
+        <Route path="/hackathon/:slug"          element={<HackathonPublicPage />} />
+        <Route path="/hackathon/:slug/register" element={<HackathonRegisterPage />} />
       </Routes>
     </BrowserRouter>
   );

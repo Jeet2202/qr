@@ -10,70 +10,11 @@ import {
   Check,
   MonitorPlay,
 } from 'lucide-react';
+import axios from 'axios';
 import StudentNavbar from '../../components/StudentNavbar';
 import ActivityTabs from '../../components/ActivityTabs';
 
 /* ─────────────────────── MOCK DATA ─────────────────────── */
-
-const mockHackathons = [
-  {
-    hackathonId: 'h1',
-    title: 'CodeStorm 2026',
-    organizerName: 'IIT Bombay',
-    prizePool: '₹5,00,000',
-    registrationDeadline: 'March 25, 2026',
-    bannerImage: null,
-    tag: 'Open',
-    tagColor: 'bg-[#e6f8f1] text-[#047857]', // Matched exactly to screenshot
-    participants: 4478,
-    type: 'Online',
-    interests: ['Machine Learning/AI', 'Databases'],
-    logoBg: 'bg-[#334155]' // Slate dark
-  },
-  {
-    hackathonId: 'h2',
-    title: 'InnoVerse Hack',
-    organizerName: 'BITS Pilani',
-    prizePool: '₹3,00,000',
-    registrationDeadline: 'April 10, 2026',
-    bannerImage: null,
-    tag: 'Closing Soon',
-    tagColor: 'bg-[#fffbeb] text-[#b45309]', // Matched exactly to screenshot
-    participants: 928,
-    type: 'Online',
-    interests: ['Design', 'Health'],
-    logoBg: 'bg-[#10b981]' // Emerald green
-  },
-  {
-    hackathonId: 'h3',
-    title: 'HackIndia National',
-    organizerName: 'NASSCOM',
-    prizePool: '₹10,00,000',
-    registrationDeadline: 'May 1, 2026',
-    bannerImage: null,
-    tag: 'Featured',
-    tagColor: 'bg-blue-50 text-blue-700',
-    participants: 12196,
-    type: 'In-person',
-    interests: ['Social Good', 'Machine Learning/AI'],
-    logoBg: 'bg-[#4f46e5]' // Indigo
-  },
-  {
-    hackathonId: 'h4',
-    title: 'DataThon Spring',
-    organizerName: 'Google DSC',
-    prizePool: '₹1,50,000',
-    registrationDeadline: 'April 18, 2026',
-    bannerImage: null,
-    tag: 'Open',
-    tagColor: 'bg-[#e6f8f1] text-[#047857]',
-    participants: 860,
-    type: 'Online',
-    interests: ['Data Science', 'Beginner Friendly'],
-    logoBg: 'bg-[#f59e0b]' // Amber
-  },
-];
-
 const mockRegistered = [
   {
     hackathonId: 'h1',
@@ -94,15 +35,15 @@ function HackathonListCard({ hackathon }) {
 
   return (
     <div
-      onClick={() => navigate(`/student/hackathon/${hackathon.hackathonId}`)}
+      onClick={() => navigate(`/student/hackathon/${hackathon.slug}`)}
       className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] transition-shadow cursor-pointer w-full items-stretch"
     >
       {/* 1. Left: Large Logo Box */}
-      <div className={`w-20 h-20 sm:w-28 sm:h-28 rounded-xl shrink-0 flex items-center justify-center overflow-hidden ${hackathon.logoBg}`}>
-        {hackathon.bannerImage ? (
-          <img src={hackathon.bannerImage} alt={hackathon.title} className="w-full h-full object-cover" />
+      <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-xl shrink-0 flex items-center justify-center overflow-hidden bg-gray-100 border border-gray-200">
+        {hackathon.logoImage ? (
+          <img src={`http://localhost:5000/${hackathon.logoImage}`} alt={hackathon.title} className="w-full h-full object-cover" />
         ) : (
-          <span className="text-white text-3xl sm:text-5xl font-bold select-none">
+          <span className="text-gray-400 text-3xl sm:text-5xl font-bold select-none">
             {hackathon.title[0]}
           </span>
         )}
@@ -115,21 +56,21 @@ function HackathonListCard({ hackathon }) {
             {hackathon.title}
           </h3>
           <div className="flex flex-wrap items-center gap-3 mt-2">
-            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${hackathon.tagColor}`}>
-              {hackathon.tag}
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-[#e6f8f1] text-[#047857]">
+              Open
             </span>
             <span className="flex items-center gap-1.5 text-sm text-gray-600 font-medium">
-              <Globe size={15} className="text-gray-400" /> {hackathon.type}
+              <Globe size={15} className="text-gray-400" /> {hackathon.mode || 'Online'}
             </span>
           </div>
         </div>
         
         <div className="flex items-center gap-6 mt-4 sm:mt-0">
           <span className="text-gray-900 text-[15px]">
-            <strong className="font-extrabold">{hackathon.prizePool}</strong> <span className="text-gray-500 font-medium">in prizes</span>
+            <strong className="font-extrabold">{hackathon.prizePool || '—'}</strong> <span className="text-gray-500 font-medium">in prizes</span>
           </span>
           <span className="flex items-center gap-1.5 text-gray-500 text-[15px] font-medium">
-            <Users size={16} /> {hackathon.participants} participants
+            <Users size={16} /> {hackathon.teamSizeMin || 2}-{hackathon.teamSizeMax || 4} members
           </span>
         </div>
       </div>
@@ -142,12 +83,12 @@ function HackathonListCard({ hackathon }) {
             <Building2 size={13} className="text-gray-400" /> {hackathon.organizerName}
           </span>
           <span className="text-gray-600 flex items-center gap-1.5 text-sm font-medium">
-            <Calendar size={15} className="text-gray-400" /> Deadline: {hackathon.registrationDeadline}
+            <Calendar size={15} className="text-gray-400" /> Deadline: {hackathon.registrationDeadline ? new Date(hackathon.registrationDeadline).toLocaleDateString() : 'TBA'}
           </span>
         </div>
 
         <div className="flex flex-wrap justify-start sm:justify-end gap-2 mt-4 sm:mt-0">
-          {(hackathon.interests || []).map((interest, i) => (
+          {(hackathon.tags || []).slice(0,2).map((interest, i) => (
             <span key={i} className="text-xs font-medium text-[#1e3a8a] bg-[#eff6ff] border border-[#bfdbfe] px-2.5 py-1 rounded-md">
               {interest}
             </span>
@@ -206,16 +147,30 @@ function SidebarFilters() {
 /* ─────────────────────── DASHBOARD PAGE ─────────────────── */
 
 export default function Dashboard() {
-  // FRONTEND SORTING LOGIC
+  const [hackathons, setHackathons] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('relevant');
+
+  import('react').then(({ useEffect }) => {
+    useEffect(() => {
+      axios.get('http://localhost:5000/api/hackathons')
+        .then(res => {
+          setHackathons(res.data.data || []);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setLoading(false);
+        });
+    }, []);
+  });
   
   const sortedHackathons = useMemo(() => {
-    const list = [...mockHackathons];
+    const list = [...hackathons];
     if (sortBy === 'prize') {
-      // Sort High to Low based on extracted number
       return list.sort((a, b) => {
-        const valA = parseInt(a.prizePool.replace(/\D/g, '')) || 0;
-        const valB = parseInt(b.prizePool.replace(/\D/g, '')) || 0;
+        const valA = parseInt((a.prizePool || '').replace(/\D/g, '')) || 0;
+        const valB = parseInt((b.prizePool || '').replace(/\D/g, '')) || 0;
         return valB - valA;
       });
     }
@@ -224,11 +179,10 @@ export default function Dashboard() {
       return list.sort((a, b) => new Date(a.registrationDeadline) - new Date(b.registrationDeadline));
     }
     if (sortBy === 'added') {
-      // Mock 'recently added' by using participants logic
-      return list.sort((a, b) => b.participants - a.participants);
+      return list; // mock: use natural order (desc createdAt)
     }
-    return list; // 'relevant' (default order)
-  }, [sortBy]);
+    return list; // 'relevant'
+  }, [sortBy, hackathons]);
 
   return (
     <div className="min-h-screen bg-white">
@@ -294,9 +248,15 @@ export default function Dashboard() {
 
               {/* Hackathon List */}
               <div className="flex flex-col gap-5 mt-2">
-                {sortedHackathons.map((hack) => (
-                  <HackathonListCard key={hack.hackathonId} hackathon={hack} />
-                ))}
+                {loading ? (
+                  <p className="text-center text-gray-400 py-10 font-bold">Loading hackathons...</p>
+                ) : sortedHackathons.length === 0 ? (
+                  <p className="text-center text-gray-400 py-10 font-bold">No hackathons available yet.</p>
+                ) : (
+                  sortedHackathons.map((hack) => (
+                    <HackathonListCard key={hack.slug} hackathon={hack} />
+                  ))
+                )}
               </div>
               
             </div>
