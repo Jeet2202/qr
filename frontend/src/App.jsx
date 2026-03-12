@@ -15,6 +15,7 @@ import Dashboard from './pages/student/Dashboard';
 import Profile from './pages/student/Profile';
 import HackathonDetails from './pages/student/HackathonDetails';
 import Certificates from './pages/student/Certificates';
+import LiveEvent from './pages/student/LiveEvent';
 import PptReview from './pages/organizer/PptReview';
 
 export default function App() {
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="/student/profile" element={<Profile />} />
         <Route path="/student/hackathon/:id" element={<HackathonDetails />} />
         <Route path="/student/certificates" element={<Certificates />} />
+        <Route path="/student/live-event" element={<LiveEvent />} />
       </Routes>
     </BrowserRouter>
   );

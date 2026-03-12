@@ -14,6 +14,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", require("./routes/auth"));
+app.use("/api/live-event", require("./routes/liveEvent"));
 
 // Health check
 app.get("/", (req, res) => res.json({ status: "HackFlow API running 🚀" }));
