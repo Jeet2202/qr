@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Menu, X, User } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Menu, X, User, Radio } from 'lucide-react';
 
-const navLinks = [
+const baseLinks = [
   { label: 'Dashboard', to: '/student/dashboard' },
   { label: 'Certificates', to: '/student/certificates' },
 ];
@@ -16,7 +16,31 @@ const mockUser = {
 
 export default function StudentNavbar({ user = mockUser }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isShortlisted, setIsShortlisted] = useState(true); // default true as fallback
   const navigate = useNavigate();
+  const location = useLocation();
+
+  /* Fetch shortlisted status from API */
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:5000/api/live-event/shortlisted', {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setIsShortlisted(data.isShortlisted);
+        }
+      } catch {
+        // API unavailable — keep default (true)
+      }
+    })();
+  }, []);
+
+  const navLinks = isShortlisted
+    ? [...baseLinks, { label: 'Live Event', to: '/student/live-event', highlight: true }]
+    : baseLinks;
 
   const initials = user.name
     ? user.name
@@ -40,16 +64,26 @@ export default function StudentNavbar({ user = mockUser }) {
           </Link>
 
           {/* ── Desktop Nav Links ── */}
-          <div className="hidden md:flex items-center gap-8">
-            {navLinks.map((link) => (
-              <Link
-                key={link.label}
-                to={link.to}
-                className="text-sm font-medium text-gray-600 hover:text-royal transition-colors duration-200"
-              >
-                {link.label}
-              </Link>
-            ))}
+          <div className="hidden md:flex items-center gap-6">
+            {navLinks.map((link) => {
+              const isActive = location.pathname === link.to;
+              return (
+                <Link
+                  key={link.label}
+                  to={link.to}
+                  className={`text-sm font-medium transition-colors duration-200 flex items-center gap-1.5
+                    ${link.highlight
+                      ? 'text-royal font-bold'
+                      : isActive
+                        ? 'text-royal'
+                        : 'text-gray-600 hover:text-royal'
+                    }`}
+                >
+                  {link.highlight && <Radio size={13} className="text-emerald-500 animate-pulse" />}
+                  {link.label}
+                </Link>
+              );
+            })}
           </div>
 
           {/* ── Profile Icon ── */}
@@ -85,17 +119,22 @@ export default function StudentNavbar({ user = mockUser }) {
       {/* ── Mobile Menu ── */}
       <div
         className={`md:hidden overflow-hidden transition-all duration-300 ${
-          mobileOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'
+          mobileOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
         }`}
       >
-        <div className="px-4 pb-4 pt-2 space-y-2 bg-white border-t border-gray-100">
+        <div className="px-4 pb-4 pt-2 space-y-1 bg-white border-t border-gray-100">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               to={link.to}
-              className="block px-3 py-2 text-sm font-medium text-gray-700 hover:text-royal hover:bg-royal/5 rounded-lg transition-colors"
+              className={`flex items-center gap-2 px-3 py-2.5 text-sm font-medium rounded-lg transition-colors
+                ${link.highlight
+                  ? 'text-royal font-bold bg-royal/5'
+                  : 'text-gray-700 hover:text-royal hover:bg-royal/5'
+                }`}
               onClick={() => setMobileOpen(false)}
             >
+              {link.highlight && <Radio size={13} className="text-emerald-500 animate-pulse" />}
               {link.label}
             </Link>
           ))}

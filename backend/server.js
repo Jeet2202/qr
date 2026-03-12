@@ -25,6 +25,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.use("/api/auth",              require("./routes/auth"));
+app.use("/api/live-event", require("./routes/liveEvent"));
 app.use("/api/hackathons",        require("./routes/hackathonRoutes"));
 app.use("/api/organizer/events",  require("./routes/eventRoutes"));
 

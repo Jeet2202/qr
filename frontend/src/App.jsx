@@ -25,6 +25,7 @@ import HackathonDetails from './pages/student/HackathonDetails';
 import HackathonPublicPage from './pages/student/HackathonPublicPage';
 import HackathonRegisterPage from './pages/student/HackathonRegisterPage';
 import Certificates     from './pages/student/Certificates';
+import LiveEvent from './pages/student/LiveEvent';
 
 
 
@@ -66,6 +67,7 @@ export default function App() {
         {/* Hackathon Public Pages (Unstop-style template) */}
         <Route path="/hackathon/:slug"          element={<HackathonPublicPage />} />
         <Route path="/hackathon/:slug/register" element={<HackathonRegisterPage />} />
+        <Route path="/student/live-event" element={<LiveEvent />} />
       </Routes>
     </BrowserRouter>
   );
