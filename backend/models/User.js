@@ -22,14 +22,20 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["student", "organizer"],
+      enum: ["student", "organizer", "admin"],
       default: "student",
     },
 
-    // ── OTP Verification ──────────────────────────────────────────
+    // ── OTP / Email Verification ───────────────────────────────────
     isVerified: {
       type: Boolean,
-      default: false,
+      default: false,  // true after email OTP verified
+    },
+
+    // ── Organizer Profile Approval (set by admin) ─────────────────
+    orgVerified: {
+      type: Boolean,
+      default: false,  // true only when admin approves verification request
     },
     otp: {
       type: String,

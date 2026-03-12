@@ -1,5 +1,5 @@
-const Hackathon = require('../models/Hackathon');
-const slugify   = require('slugify');
+const Hackathon    = require('../models/Hackathon');
+const slugify      = require('slugify');
 
 /* ── Helpers ──────────────────────────────────────────── */
 const parse = (v) => {
@@ -7,14 +7,12 @@ const parse = (v) => {
   return v;
 };
 
-// Returns a valid Date or undefined (avoids Invalid Date in Mongoose)
 const safeDate = (v) => {
   if (!v) return undefined;
   const d = new Date(v);
   return isNaN(d.getTime()) ? undefined : d;
 };
 
-// Works with both Cloudinary (file.path) and local disk (file.path set by multer)
 const filePath = (file) => file?.path || '';
 
 /* ── CREATE ───────────────────────────────────────────── */
@@ -25,44 +23,41 @@ const createHackathon = async (req, res) => {
     let slug = slugify(body.title, { lower: true, strict: true });
     if (await Hackathon.findOne({ slug })) slug = `${slug}-${Date.now()}`;
 
-    const bannerImage = filePath(req.files?.bannerImage?.[0]) || body.bannerImage || '';
-    const logoImage = filePath(req.files?.logoImage?.[0]) || body.logoImage || '';
+    const bannerImage            = filePath(req.files?.bannerImage?.[0])         || body.bannerImage || '';
+    const logoImage              = filePath(req.files?.logoImage?.[0])            || body.logoImage   || '';
     const problemStatementFileUrl = filePath(req.files?.problemStatementFile?.[0]) || '';
 
-    // Default object for problemStatement
     let problemStatement = undefined;
     if (body.problemStatementName) {
       problemStatement = {
-        title: body.problemStatementName,
-        fileName: req.files?.problemStatementFile?.[0]?.originalname || 'document.pdf',
-        fileSize: req.files?.problemStatementFile?.[0]
-          ? (req.files.problemStatementFile[0].size / 1024 / 1024).toFixed(2) + ' MB'
-          : '0.0 MB',
-        downloadUrl: problemStatementFileUrl
+        title:       body.problemStatementName,
+        fileName:    req.files?.problemStatementFile?.[0]?.originalname || 'document.pdf',
+        fileSize:    req.files?.problemStatementFile?.[0]
+                       ? (req.files.problemStatementFile[0].size / 1024 / 1024).toFixed(2) + ' MB'
+                       : '0.0 MB',
+        downloadUrl: problemStatementFileUrl,
       };
     }
 
     const data = {
-      title: body.title,
+      title:                body.title,
       slug,
-      organizerName: body.organizerName,
+      organizerName:        body.organizerName,
       logoImage,
       bannerImage,
-      description: body.description,
-      mode: body.mode,
-      teamSizeMin: Number(body.teamSizeMin) || 2,
-      teamSizeMax: Number(body.teamSizeMax) || 4,
+      description:          body.description,
+      mode:                 body.mode,
+      teamSizeMin:          Number(body.teamSizeMin) || 2,
+      teamSizeMax:          Number(body.teamSizeMax) || 4,
       registrationDeadline: safeDate(body.registrationDeadline),
-      prizePool: body.prizePool || '',
-      tags: parse(body.tags) || [],
-      
-      stages: parse(body.stages) || [],
+      prizePool:            body.prizePool || '',
+      tags:                 parse(body.tags)   || [],
+      stages:               parse(body.stages) || [],
       problemStatement,
-      prizes: parse(body.prizes) || [],
-      rules: parse(body.rules) || [],
-
-      organizerContact: body.organizerContact,
-      whatsappLink: body.whatsappLink || '',
+      prizes:               parse(body.prizes) || [],
+      rules:                parse(body.rules)  || [],
+      organizerContact:     body.organizerContact,
+      whatsappLink:         body.whatsappLink || '',
     };
 
     const hackathon = await Hackathon.create(data);
@@ -118,5 +113,9 @@ const deleteHackathon = async (req, res) => {
 };
 
 module.exports = {
-  createHackathon, getAllHackathons, getHackathonBySlug, updateHackathon, deleteHackathon,
+  createHackathon,
+  getAllHackathons,
+  getHackathonBySlug,
+  updateHackathon,
+  deleteHackathon,
 };

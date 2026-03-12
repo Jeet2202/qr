@@ -2,17 +2,17 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, PlusCircle, ClipboardList, FileText,
-  CalendarCheck, Award, Settings, ChevronRight, ChevronLeft, Zap,
+  CalendarCheck, Award, Settings, ChevronRight, ChevronLeft, Zap, UserCircle, ShieldCheck,
 } from 'lucide-react';
 
 const NAV = [
-  { label: 'Dashboard',         href: '/organizer-dashboard', icon: LayoutDashboard },
-  { label: 'Create Hackathon',  href: '/organizer/create',    icon: PlusCircle      },
-  { label: 'Manage Hackathons', href: '/organizer/manage',    icon: ClipboardList   },
-  { label: 'PPT Review',        href: '/organizer/ppt-review',icon: FileText        },
-  { label: 'Event Management',  href: '/organizer/events',    icon: CalendarCheck   },
-  { label: 'Certificates',      href: '/organizer/certificates', icon: Award        },
-  { label: 'Settings',          href: '/organizer/settings',  icon: Settings        },
+  { label: 'Dashboard',         href: '/organizer-dashboard',      icon: LayoutDashboard },
+  { label: 'Create Hackathon',  href: '/organizer/create',         icon: PlusCircle      },
+  { label: 'Manage Hackathons', href: '/organizer/manage',         icon: ClipboardList   },
+  { label: 'PPT Review',        href: '/organizer/ppt-review',     icon: FileText        },
+  { label: 'Event Management',  href: '/organizer/events',         icon: CalendarCheck   },
+  { label: 'Certificates',      href: '/organizer/certificates',   icon: Award           },
+  { label: 'MyProfile',         href: '/organizer/profile',        icon: UserCircle      },
 ];
 
 /**
@@ -97,24 +97,7 @@ export default function OrganizerSidebar({ open: openProp, onToggle: onTogglePro
             </Link>
           );
         })}
-      </nav>
-
-      {/* Profile footer */}
-      {open && (
-        <div className="px-3 pb-4 shrink-0">
-          <div className="flex items-center gap-2.5 p-3 rounded-xl bg-gray-50 border border-gray-100">
-            <img
-              src="https://i.pravatar.cc/40?img=12"
-              alt="organizer"
-              className="w-7 h-7 rounded-full object-cover"
-            />
-            <div>
-              <p className="text-xs font-semibold text-dark truncate">Tech Club</p>
-              <p className="text-[10px] text-gray-400">Verified Organizer</p>
-            </div>
-          </div>
-        </div>
-      )}
+      </nav>  
     </aside>
   );
 }
