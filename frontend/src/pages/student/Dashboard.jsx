@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -151,19 +151,17 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState('relevant');
 
-  import('react').then(({ useEffect }) => {
-    useEffect(() => {
-      axios.get('http://localhost:5000/api/hackathons')
-        .then(res => {
-          setHackathons(res.data.data || []);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error(err);
-          setLoading(false);
-        });
-    }, []);
-  });
+  useEffect(() => {
+    axios.get('http://localhost:5000/api/hackathons')
+      .then(res => {
+        setHackathons(res.data.data || []);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
   
   const sortedHackathons = useMemo(() => {
     const list = [...hackathons];
