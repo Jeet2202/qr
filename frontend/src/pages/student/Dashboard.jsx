@@ -107,7 +107,7 @@ function HackathonListCard({ hackathon }) {
       {/* 1. Left: Large Logo Box */}
       <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-xl shrink-0 flex items-center justify-center overflow-hidden bg-gray-100 border border-gray-200">
         {hackathon.logoImage ? (
-          <img src={`http://localhost:5000/${hackathon.logoImage}`} alt={hackathon.title} className="w-full h-full object-cover" />
+          <img src={hackathon.logoImage} alt={hackathon.title} className="w-full h-full object-cover" />
         ) : (
           <span className="text-gray-400 text-3xl sm:text-5xl font-bold select-none">
             {hackathon.title[0]}

@@ -940,7 +940,7 @@ function SOSPanel({ sosRequests, setSosRequests, showToast, hackId }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {sosRequests.map(r => (
-              <div key={r.sosId} style={{ borderLeft: '4px solid #ef4444', background: 'rgba(239,68,68,0.04)', borderRadius: '0 14px 14px 0', padding: '14px 16px', border: '1px solid rgba(239,68,68,0.1)', borderLeft: '4px solid #ef4444' }}>
+              <div key={r.sosId} style={{ background: 'rgba(239,68,68,0.04)', borderRadius: '0 14px 14px 0', padding: '14px 16px', border: '1px solid rgba(239,68,68,0.1)', borderLeft: '4px solid #ef4444' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#0A1628', marginBottom: '3px' }}>
