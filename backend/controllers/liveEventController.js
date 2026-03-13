@@ -1,8 +1,8 @@
-const LiveEvent = require("../models/LiveEvent");
-const Hackathon = require("../models/Hackathon");
-const HelpRequest = require("../models/HelpRequest");
-const User = require("../models/User");
-const crypto = require("crypto");
+const LiveEvent  = require('../models/LiveEvent');
+const Hackathon  = require('../models/Hackathon');
+const EventSOS   = require('../models/EventSOS');
+const User       = require('../models/User');
+const crypto     = require('crypto');
 
 /* ───────────────────────────────────────────
    GET /api/live-event/me
@@ -120,82 +120,97 @@ exports.scanQR = async (req, res) => {
 exports.submitHelpRequest = async (req, res) => {
   try {
     const { issueType, message } = req.body;
+    if (!issueType) return res.status(400).json({ message: 'issueType is required' });
 
-    if (!issueType) {
-      return res.status(400).json({ message: "issueType is required" });
-    }
+    // Get student name
+    const user = await User.findById(req.user.id).select('name');
 
-    // Find the student's active live event to get hackathon
+    // Try to get hackathon from live event, fall back to latest hackathon
+    let hackathonId = null;
+    let workspace   = '';
     const event = await LiveEvent.findOne({ student: req.user.id });
-    if (!event) {
-      return res.status(404).json({ message: "No active live event" });
+    if (event) {
+      hackathonId = event.hackathon;
+      workspace   = event.workspaceLocation || event.workspaceNumber || '';
+    } else {
+      // Fallback: use the most recent hackathon in the DB
+      const latestHackathon = await Hackathon.findOne().sort({ createdAt: -1 }).select('_id');
+      hackathonId = latestHackathon?._id || null;
     }
 
-    const helpReq = await HelpRequest.create({
-      student: req.user.id,
-      hackathon: event.hackathon,
+    if (!hackathonId) {
+      return res.status(400).json({ message: 'No hackathon found to attach this request to.' });
+    }
+
+    const sos = await EventSOS.create({
+      studentId:   req.user.id,
+      hackathonId,
+      studentName: user?.name || 'Student',
+      workspace,
       issueType,
-      message: message || "",
+      message: message || '',
     });
 
-    res.status(201).json({
-      id: helpReq._id,
-      issue: helpReq.issueType,
-      message: helpReq.message,
-      status: helpReq.status,
-      time: helpReq.createdAt,
+    return res.status(201).json({
+      id:              sos._id,
+      issue:           sos.issueType,
+      message:         sos.message,
+      cocomResolved:   sos.cocomResolved,
+      studentResolved: sos.studentResolved,
+      time:            sos.createdAt,
     });
   } catch (err) {
-    console.error("submitHelpRequest error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error('submitHelpRequest error:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
 /* ───────────────────────────────────────────
    GET /api/live-event/help
-   Student gets their help requests
+   Student gets their own SOS requests
    ─────────────────────────────────────────── */
 exports.getMyHelpRequests = async (req, res) => {
   try {
-    const requests = await HelpRequest.find({ student: req.user.id })
+    const requests = await EventSOS.find({ studentId: req.user.id })
       .sort({ createdAt: -1 })
       .limit(20);
 
-    res.json(
-      requests.map((r) => ({
-        id: r._id,
-        issue: r.issueType,
-        message: r.message,
-        status: r.status,
-        time: r.createdAt,
-      }))
-    );
+    return res.json(requests.map(r => ({
+      id:              r._id,
+      issue:           r.issueType,
+      message:         r.message,
+      cocomResolved:   r.cocomResolved,
+      studentResolved: r.studentResolved,
+      time:            r.createdAt,
+    })));
   } catch (err) {
-    console.error("getMyHelpRequests error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error('getMyHelpRequests error:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
 /* ───────────────────────────────────────────
-   PATCH /api/live-event/help/:id/resolve
-   Organizer marks a help request as resolved
+   PUT /api/live-event/help/:id/student-resolve
+   Student confirms resolution → if CoCom also resolved, delete doc
    ─────────────────────────────────────────── */
-exports.resolveHelpRequest = async (req, res) => {
+exports.studentResolveHelpRequest = async (req, res) => {
   try {
-    const helpReq = await HelpRequest.findByIdAndUpdate(
-      req.params.id,
-      { status: "Resolved" },
-      { new: true }
-    );
+    const sos = await EventSOS.findOne({ _id: req.params.id, studentId: req.user.id });
+    if (!sos) return res.status(404).json({ message: 'SOS request not found' });
 
-    if (!helpReq) {
-      return res.status(404).json({ message: "Help request not found" });
+    sos.studentResolved = true;
+
+    if (sos.cocomResolved) {
+      // Both sides confirmed — delete
+      await EventSOS.findByIdAndDelete(sos._id);
+      return res.json({ success: true, deleted: true, message: 'Issue fully resolved and removed.' });
     }
 
-    res.json({ message: "Help request resolved", id: helpReq._id, status: "Resolved" });
+    await sos.save();
+    return res.json({ success: true, deleted: false, cocomResolved: sos.cocomResolved, studentResolved: true });
   } catch (err) {
-    console.error("resolveHelpRequest error:", err);
-    res.status(500).json({ message: "Server error" });
+    console.error('studentResolveHelpRequest error:', err);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 

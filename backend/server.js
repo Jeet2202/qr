@@ -28,6 +28,7 @@ app.use("/api/auth",              require("./routes/auth"));
 app.use("/api/live-event", require("./routes/liveEvent"));
 app.use("/api/hackathons",        require("./routes/hackathonRoutes"));
 app.use("/api/organizer/events",  require("./routes/eventRoutes"));
+app.use("/api/organizer/cocom",   require("./routes/cocomRoutes"));
 
 // Health check
 app.get("/",           (req, res) => res.json({ status: "HackFlow API running 🚀" }));

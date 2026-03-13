@@ -73,9 +73,10 @@ export default function AnimatedLoginPage() {
       localStorage.setItem("hf_email", form.email);
       // Role-based redirect
       const role = data.role as string;
-      if (role === "admin")     navigate("/admin-dashboard");
+      if (role === "admin")          navigate("/admin-dashboard");
       else if (role === "organizer") navigate("/organizer-dashboard");
-      else                      navigate("/student/dashboard");
+      else if (role === "cocom")     navigate("/cocom/my-tasks");
+      else                           navigate("/student/dashboard");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Invalid credentials";
       setApiError(msg);

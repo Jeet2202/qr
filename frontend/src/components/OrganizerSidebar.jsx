@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, PlusCircle, ClipboardList, FileText,
-  CalendarCheck, Award, Settings, ChevronRight, ChevronLeft, Zap, UserCircle, ShieldCheck,
+  CalendarCheck, Award, Settings, ChevronRight, ChevronLeft, Zap, UserCircle, ShieldCheck, Users2,
 } from 'lucide-react';
 
 const NAV = [
@@ -11,6 +11,7 @@ const NAV = [
   { label: 'Manage Hackathons', href: '/organizer/manage',         icon: ClipboardList   },
   { label: 'PPT Review',        href: '/organizer/ppt-review',     icon: FileText        },
   { label: 'Event Management',  href: '/organizer/events',         icon: CalendarCheck   },
+  { label: 'CoCom Dashboard',   href: '/organizer/cocom',          icon: Users2          },
   { label: 'Certificates',      href: '/organizer/certificates',   icon: Award           },
   { label: 'MyProfile',         href: '/organizer/profile',        icon: UserCircle      },
 ];
@@ -63,8 +64,11 @@ export default function OrganizerSidebar({ open: openProp, onToggle: onTogglePro
       {/* Nav links */}
       <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
         {NAV.map(({ label, href, icon: Icon }) => {
-          const isEvent = label === 'Event Management';
-          const on = pathname === href || (isEvent && pathname.startsWith('/organizer/event'));
+          const isEvent  = label === 'Event Management';
+          const isCoCom = label === 'CoCom Dashboard';
+          const on = pathname === href
+            || (isEvent  && pathname.startsWith('/organizer/event'))
+            || (isCoCom  && pathname.startsWith('/organizer/cocom'));
           return (
             <Link
               key={label}

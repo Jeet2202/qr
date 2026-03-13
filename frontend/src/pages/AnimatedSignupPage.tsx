@@ -36,16 +36,21 @@ function AuthInput({
 
 /* ══════════════ Role Selector ══════════════ */
 
-const roles = [
+const topLevelRoles = [
   { id: "student",   label: "Student",   description: "Participate in hackathons, create teams, and submit projects.", icon: GraduationCap },
-  { id: "organizer", label: "Organizer",  description: "Create and manage hackathons, review submissions and participants.", icon: Building2 },
+  { id: "organizer", label: "Organizer", description: "Create and manage hackathons, review submissions and participants.", icon: Building2 },
+];
+
+const orgSubRoles = [
+  { id: "organizer", label: "Core Team",     description: "Full organizer access — create events, manage hackathons, and review submissions." },
+  { id: "cocom",     label: "CoCom Member",  description: "Committee volunteer — view and complete assigned tasks from the organizer." },
 ];
 
 function RoleSelector({ selectedRole, onSelect }: { selectedRole: string; onSelect: (id: string) => void }) {
   return (
     <div className="grid grid-cols-2 gap-3">
-      {roles.map(role => {
-        const sel = selectedRole === role.id;
+      {topLevelRoles.map(role => {
+        const sel = selectedRole === role.id || (role.id === "organizer" && (selectedRole === "organizer" || selectedRole === "cocom"));
         return (
           <button key={role.id} type="button" onClick={() => onSelect(role.id)}
             className={`relative flex flex-col items-center text-center p-4 rounded-2xl border-2 transition-all duration-200 cursor-pointer group ${sel ? "border-royal bg-royal/5 shadow-md" : "border-gray-200 bg-white hover:border-royal/40 hover:bg-gray-50"}`}>
@@ -64,6 +69,31 @@ function RoleSelector({ selectedRole, onSelect }: { selectedRole: string; onSele
   );
 }
 
+function OrgSubRoleSelector({ selectedSubRole, onSelect }: { selectedSubRole: string; onSelect: (id: string) => void }) {
+  return (
+    <div className="mt-3 space-y-2">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Select your organizer type</p>
+      <div className="grid grid-cols-2 gap-2">
+        {orgSubRoles.map(sub => {
+          const sel = selectedSubRole === sub.id;
+          return (
+            <button key={sub.id} type="button" onClick={() => onSelect(sub.id)}
+              className={`relative flex flex-col text-left p-3.5 rounded-xl border-2 transition-all duration-200 cursor-pointer ${sel ? "border-royal bg-royal/5 shadow-sm" : "border-gray-200 bg-white hover:border-royal/30 hover:bg-gray-50"}`}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className={`w-3 h-3 rounded-full border-2 flex items-center justify-center shrink-0 ${sel ? "border-royal" : "border-gray-300"}`}>
+                  {sel && <div className="w-1.5 h-1.5 rounded-full bg-royal" />}
+                </div>
+                <span className={`text-xs font-bold ${sel ? "text-royal" : "text-gray-800"}`}>{sub.label}</span>
+              </div>
+              <p className="text-[10px] text-gray-500 leading-snug pl-5">{sub.description}</p>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* ══════════════ Signup Page (Steps 1 & 2) ══════════════ */
 
 export default function AnimatedSignupPage() {
@@ -71,6 +101,7 @@ export default function AnimatedSignupPage() {
 
   const [step, setStep] = useState(1);
   const [role, setRole] = useState("");
+  const [subRole, setSubRole] = useState("organizer"); // "organizer" = Core Team, "cocom" = CoCom Member
 
   /* form fields */
   const [form, setForm]     = useState({ name: "", email: "", password: "", confirmPassword: "", agreeTerms: false });
@@ -118,9 +149,10 @@ export default function AnimatedSignupPage() {
     setLoading(true);
     try {
       await api.post("/auth/send-otp", { email: form.email });
-      // Email in URL survives refresh; sensitive data stays in router state only.
+      // Resolve final role: student stays student; organizer uses subRole ("organizer" or "cocom")
+      const finalRole = role === "organizer" ? subRole : role;
       navigate(`/verify-otp?email=${encodeURIComponent(form.email)}`, {
-        state: { password: form.password, name: form.name, role },
+        state: { password: form.password, name: form.name, role: finalRole },
       });
     } catch (err: unknown) {
       // 409 = already registered → show error and stop
@@ -174,7 +206,16 @@ export default function AnimatedSignupPage() {
               <h1 className="text-xl font-bold text-gray-900 mb-1">Create your HackFlow account</h1>
               <p className="text-sm text-gray-500 mb-5">Select your role to get started.</p>
               <div className="space-y-4">
-                <RoleSelector selectedRole={role} onSelect={setRole} />
+                <RoleSelector selectedRole={role === "cocom" ? "organizer" : role} onSelect={(id) => {
+                  setRole(id);
+                  if (id !== "organizer") setSubRole("organizer"); // reset sub-role when switching away
+                }} />
+                {(role === "organizer" || role === "cocom") && (
+                  <OrgSubRoleSelector selectedSubRole={subRole} onSelect={(id) => {
+                    setSubRole(id);
+                    setRole(id); // keep role in sync so the subtitle on Step 2 is accurate
+                  }} />
+                )}
                 <button type="button" disabled={!role} onClick={() => setStep(2)}
                   className="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-white bg-royal rounded-xl hover:bg-royal-light transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-40 cursor-pointer">
                   Continue <ArrowRight size={16} />
@@ -188,7 +229,8 @@ export default function AnimatedSignupPage() {
             <>
               <h1 className="text-xl font-bold text-gray-900 mb-1">Create your HackFlow account</h1>
               <p className="text-sm text-gray-500 mb-5">
-                Signing up as {role === "student" ? "a Student" : "an Organizer"}
+                Signing up as{" "}
+                {role === "student" ? "a Student" : role === "cocom" ? "a CoCom Member" : "an Organizer (Core Team)"}
               </p>
               <form onSubmit={handleFormSubmit} className="space-y-3">
                 <button type="button" onClick={() => setStep(1)}

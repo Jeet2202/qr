@@ -1,13 +1,20 @@
 const mongoose = require('mongoose');
 
 const eventSOSSchema = new mongoose.Schema({
-  hackathonId: { type: String, required: true },
-  sosId: { type: String, required: true }, // custom short ID
-  name: { type: String, required: true }, // requester name
-  workspace: { type: String, required: true }, // e.g. "Lab 1"
-  message: { type: String, required: true }, // "Projector not working"
-  time: { type: String, required: true }, // "2 min ago" (could be computed, but simple for now)
-  status: { type: String, enum: ['active', 'resolved'], default: 'active' }
+  studentId:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  hackathonId:     { type: mongoose.Schema.Types.ObjectId, ref: 'Hackathon', required: true },
+  studentName:     { type: String, required: true },
+  workspace:       { type: String, default: '' },        // student's workspace/lab location
+  issueType:       {
+    type: String,
+    enum: ['Workspace Issue', 'Technical Issue', 'Food Coupon Issue', 'Other'],
+    required: true,
+  },
+  message:         { type: String, default: '' },
+
+  // Dual-verification flags
+  cocomResolved:   { type: Boolean, default: false },    // CoCom marked it resolved
+  studentResolved: { type: Boolean, default: false },    // Student confirmed resolution
 }, { timestamps: true });
 
 module.exports = mongoose.model('EventSOS', eventSOSSchema);

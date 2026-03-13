@@ -143,24 +143,41 @@ export default function LiveEvent() {
 
   /* Helper to get auth headers */
   const getHeaders = () => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('hf_token');
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   };
 
-  /* Fetch live event data on mount */
+  /* Fetch live event data + real hackathon name on mount */
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/me`, { headers: getHeaders() });
-        if (res.ok) {
-          const data = await res.json();
-          setEvent(data);
+        // Fetch both in parallel — live event (may 404) + latest hackathon for real name
+        const [eventRes, hackRes] = await Promise.allSettled([
+          fetch(`${API_BASE}/me`, { headers: getHeaders() }),
+          fetch('http://localhost:5000/api/hackathons/latest'),
+        ]);
+
+        let merged = { ...FALLBACK_EVENT };
+
+        // Overlay live event data if available
+        if (eventRes.status === 'fulfilled' && eventRes.value.ok) {
+          const data = await eventRes.value.json();
+          merged = { ...merged, ...data };
         }
+
+        // Always override hackathon name/organizer with real MongoDB data
+        if (hackRes.status === 'fulfilled' && hackRes.value.ok) {
+          const hack = await hackRes.value.json();
+          if (hack.title)        merged.hackathonName  = hack.title;
+          if (hack.organizerName) merged.organizerName = hack.organizerName;
+        }
+
+        setEvent(merged);
       } catch {
-        // API unavailable — keep fallback data
+        // Keep fallback data
       } finally {
         setLoading(false);
       }
@@ -265,29 +282,45 @@ export default function LiveEvent() {
         const data = await res.json();
         setHelpRequests(prev => [data, ...prev]);
       } else {
-        // Fallback: add locally
         setHelpRequests(prev => [{
-          id: Date.now(),
-          issue: helpIssue,
-          message: helpMsg,
-          status: 'Pending',
-          time: new Date().toISOString(),
+          id: Date.now(), issue: helpIssue, message: helpMsg,
+          cocomResolved: false, studentResolved: false, time: new Date().toISOString(),
         }, ...prev]);
       }
     } catch {
-      // Offline fallback
       setHelpRequests(prev => [{
-        id: Date.now(),
-        issue: helpIssue,
-        message: helpMsg,
-        status: 'Pending',
-        time: new Date().toISOString(),
+        id: Date.now(), issue: helpIssue, message: helpMsg,
+        cocomResolved: false, studentResolved: false, time: new Date().toISOString(),
       }, ...prev]);
     }
     setHelpSending(false);
     setHelpModal(false);
     setHelpMsg('');
     setHelpFile(null);
+  };
+
+  /* Confirm-resolve: student confirms after CoCom resolves */
+  const [confirming, setConfirming] = useState(null);
+
+  const confirmResolve = async (id) => {
+    setConfirming(id);
+    try {
+      const res = await fetch(`${API_BASE}/help/${id}/student-resolve`, {
+        method: 'PUT',
+        headers: getHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.deleted) {
+          setHelpRequests(prev => prev.filter(r => r.id !== id));
+        } else {
+          setHelpRequests(prev => prev.map(r =>
+            r.id === id ? { ...r, studentResolved: true } : r
+          ));
+        }
+      }
+    } catch { /* silent */ }
+    setConfirming(null);
   };
 
   return (
@@ -608,41 +641,59 @@ export default function LiveEvent() {
               <MessageSquare size={14} className="text-gray-400" /> Your Help Requests
             </h3>
 
-            {helpRequests.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center mb-3">
-                  <CheckCircle2 size={20} className="text-gray-300" />
-                </div>
-                <p className="text-xs font-semibold text-gray-400">No help requests yet</p>
-                <p className="text-[10px] text-gray-300 mt-0.5">Everything running smoothly!</p>
+          {helpRequests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center mb-3">
+                <CheckCircle2 size={20} className="text-gray-300" />
               </div>
-            ) : (
-              <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
-                {helpRequests.map(req => (
+              <p className="text-xs font-semibold text-gray-400">No help requests yet</p>
+              <p className="text-[10px] text-gray-300 mt-0.5">Everything running smoothly!</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+              {helpRequests.map(req => {
+                const resolved = req.cocomResolved;
+                return (
                   <motion.div key={req.id}
                     initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                    className="bg-gray-50 rounded-xl p-3.5 border border-gray-100"
+                    className={`rounded-xl p-3.5 border ${
+                      resolved ? 'bg-emerald-50 border-emerald-100' : 'bg-gray-50 border-gray-100'
+                    }`}
                   >
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-xs font-bold text-dark">{req.issue}</span>
                       <motion.span
-                        key={req.status}
+                        key={resolved ? 'resolved' : 'pending'}
                         initial={{ scale: 0.8 }} animate={{ scale: 1 }}
-                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ring-1
-                          ${req.status === 'Resolved'
-                            ? 'bg-emerald-50 text-emerald-600 ring-emerald-200'
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ring-1 ${
+                          resolved
+                            ? 'bg-emerald-100 text-emerald-700 ring-emerald-200'
                             : 'bg-amber-50 text-amber-600 ring-amber-200'
-                          }`}
+                        }`}
                       >
-                        {req.status}
+                        {resolved ? 'Resolved by CoCom ✓' : 'Pending'}
                       </motion.span>
                     </div>
-                    {req.message && <p className="text-[11px] text-gray-500 mb-1">{req.message}</p>}
-                    <p className="text-[9px] text-gray-400">Submitted at {req.time}</p>
+                    {req.message && <p className="text-[11px] text-gray-500 mb-2">{req.message}</p>}
+                    <p className="text-[9px] text-gray-400 mb-2">Submitted at {new Date(req.time).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                    {resolved && !req.studentResolved && (
+                      <button
+                        onClick={() => confirmResolve(req.id)}
+                        disabled={confirming === req.id}
+                        className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg
+                          bg-emerald-500 text-white text-xs font-bold hover:bg-emerald-600
+                          transition-colors cursor-pointer disabled:opacity-60"
+                      >
+                        {confirming === req.id
+                          ? <><Loader2 size={12} className="animate-spin" /> Confirming...</>
+                          : <><CheckCircle2 size={12} /> Confirm Resolved</>}
+                      </button>
+                    )}
                   </motion.div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
+          )}
           </motion.div>
         </div>
 

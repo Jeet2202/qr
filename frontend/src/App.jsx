@@ -18,6 +18,8 @@ import GenerateCertificatesPage from './pages/organizer/GenerateCertificatesPage
 import PptReview                from './pages/organizer/PptReview';
 import OrganizerProfile         from './pages/organizer/OrganizerProfile';
 import OrganizerHackathonPreview from './pages/organizer/OrganizerHackathonPreview';
+import CocommDashboard           from './pages/organizer/CocommDashboard';
+import MyTasksPage               from './pages/cocomm/MyTask';
 
 import Dashboard        from './pages/student/Dashboard';
 import Profile          from './pages/student/Profile';
@@ -53,6 +55,8 @@ export default function App() {
         <Route path="/organizer/certificates/editor"    element={<ProtectedRoute role="organizer"><CertificateEditor /></ProtectedRoute>} />
         <Route path="/organizer/certificates/generate"  element={<ProtectedRoute role="organizer"><GenerateCertificatesPage /></ProtectedRoute>} />
         <Route path="/organizer/ppt-review"             element={<ProtectedRoute role="organizer"><PptReview /></ProtectedRoute>} />
+        <Route path="/organizer/cocom"                  element={<ProtectedRoute role="organizer"><CocommDashboard /></ProtectedRoute>} />
+        <Route path="/cocom/my-tasks" element={<ProtectedRoute role="cocom"><MyTasksPage /></ProtectedRoute>} />
         <Route path="/organizer/hackathon/:slug/preview" element={<OrganizerHackathonPreview />} />
 
         {/* Student */}

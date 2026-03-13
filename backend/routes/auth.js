@@ -83,7 +83,7 @@ router.post(
       .matches(/^(?=.*[A-Za-z])(?=.*\d)/)
       .withMessage("Password must contain at least one letter and one number."),
     body("name").optional().trim().isLength({ min: 2 }).withMessage("Name must be at least 2 characters."),
-    body("role").isIn(["student", "organizer"]).withMessage("Role must be 'student' or 'organizer'."),
+    body("role").isIn(["student", "organizer", "cocom"]).withMessage("Role must be 'student', 'organizer', or 'cocom'."),
   ]),
   register
 );

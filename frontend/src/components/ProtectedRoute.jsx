@@ -11,6 +11,7 @@ const ROLE_HOME = {
   student:   '/student/dashboard',
   organizer: '/organizer-dashboard',
   admin:     '/admin-dashboard',
+  cocom:     '/cocom/my-tasks',
 };
 
 export default function ProtectedRoute({ children, role }) {

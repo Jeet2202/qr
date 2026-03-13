@@ -133,8 +133,8 @@ exports.register = async (req, res) => {
       return fail(res, 400, "Password must be at least 8 characters and contain letters and numbers.");
     }
 
-    if (!["student", "organizer"].includes(role)) {
-      return fail(res, 400, "Role must be 'student' or 'organizer'.");
+    if (!["student", "organizer", "cocom"].includes(role)) {
+      return fail(res, 400, "Role must be 'student', 'organizer', or 'cocom'.");
     }
 
     const user = await User.findOne({ email: email.toLowerCase() });
