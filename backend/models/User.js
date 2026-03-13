@@ -49,6 +49,28 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+
+    // ── College Email Verification ────────────────────────────────
+    collegeVerified: {
+      type: Boolean,
+      default: false,
+    },
+    collegeEmail: {
+      type: String,
+      default: null,
+    },
+    collegeOtp: {
+      type: String,
+      default: null,
+    },
+    collegeOtpExpiry: {
+      type: Date,
+      default: null,
+    },
+    collegeOtpSentAt: {
+      type: Date,
+      default: null,
+    },
   },
   { timestamps: true }
 );
