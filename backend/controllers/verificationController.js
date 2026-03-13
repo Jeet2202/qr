@@ -9,47 +9,72 @@ const submitVerification = async (req, res) => {
   try {
     const { clubName, college, linkedin, website } = req.body;
 
-    if (!clubName || !college) {
-      return res.status(400).json({ message: 'Club name and college are required' });
+    if (!clubName || !clubName.trim()) {
+      return res.status(400).json({ message: 'Club / organisation name is required' });
+    }
+    if (!college || !college.trim()) {
+      return res.status(400).json({ message: 'College name is required' });
     }
 
-    const proofDocument     = req.file ? req.file.originalname : null;
-    const proofDocumentPath = req.file ? req.file.path        : null;
+    const organizerId = req.user.id;
 
-    // Upsert: if organizer already has a request, update it (allow resubmission after rejection)
-    const existing = await OrganizerVerification.findOne({ organizerId: req.user.id });
+    // Check for an existing record
+    let existing = await OrganizerVerification.findOne({ organizerId });
 
     if (existing && existing.status === 'pending') {
-      return res.status(400).json({ message: 'Your verification is already under review' });
+      return res.status(400).json({ message: 'Your verification is already under review. Please wait for admin approval.' });
     }
     if (existing && existing.status === 'approved') {
-      return res.status(400).json({ message: 'Your organizer account is already verified' });
+      return res.status(400).json({ message: 'Your organizer account is already verified.' });
     }
 
-    // If rejected or no request yet — create / update
-    const verification = await OrganizerVerification.findOneAndUpdate(
-      { organizerId: req.user.id },
-      {
-        organizerId: req.user.id,
-        clubName,
-        college,
-        linkedin:   linkedin || '',
-        website:    website  || '',
-        ...(proofDocument && { proofDocument, proofDocumentPath }),
-        status:     'pending',
-        reviewedBy: null,
-        reviewedAt: null,
-        rejectionReason: null,
-      },
-      { upsert: true, new: true, runValidators: true }
-    );
+    // File details (optional — organizer can also resubmit without re-uploading)
+    const proofDocument     = req.file ? req.file.originalname : (existing?.proofDocument     || null);
+    const proofDocumentPath = req.file ? req.file.path         : (existing?.proofDocumentPath || null);
 
-    res.status(201).json({ message: 'Verification request submitted', verification });
+    if (!existing) {
+      // ── First submission: create a new record ──
+      existing = new OrganizerVerification({
+        organizerId,
+        clubName:         clubName.trim(),
+        college:          college.trim(),
+        linkedin:         linkedin?.trim()  || '',
+        website:          website?.trim()   || '',
+        proofDocument,
+        proofDocumentPath,
+        status:           'pending',
+        reviewedBy:       null,
+        reviewedAt:       null,
+        rejectionReason:  null,
+      });
+    } else {
+      // ── Resubmission after rejection: update fields ──
+      existing.clubName          = clubName.trim();
+      existing.college           = college.trim();
+      existing.linkedin          = linkedin?.trim()  || '';
+      existing.website           = website?.trim()   || '';
+      existing.status            = 'pending';
+      existing.reviewedBy        = null;
+      existing.reviewedAt        = null;
+      existing.rejectionReason   = null;
+      if (req.file) {
+        existing.proofDocument     = proofDocument;
+        existing.proofDocumentPath = proofDocumentPath;
+      }
+    }
+
+    const saved = await existing.save();
+    res.status(201).json({ message: 'Verification request submitted successfully', verification: saved });
   } catch (err) {
-    console.error('[submitVerification]', err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('[submitVerification] ERROR:', err.name, err.message);
+    if (err.code === 11000) {
+      // Duplicate key — race condition safety
+      return res.status(400).json({ message: 'A verification request already exists for your account.' });
+    }
+    res.status(500).json({ message: 'Server error while submitting verification. Please try again.' });
   }
 };
+
 
 /* ────────────────────────────────────────────────────────────────────────────
    GET /api/organizer/verification/me

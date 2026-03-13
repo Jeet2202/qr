@@ -113,6 +113,108 @@ exports.scanQR = async (req, res) => {
 };
 
 /* ───────────────────────────────────────────
+   POST /api/live-event/self-scan
+   Student scans a QR code placed at the venue.
+   The participant is identified via session.
+   Body: { hackathonId, action: 'entry'|'lunch'|'dinner' }
+
+   Responses:
+     200 — success  { success, action, message, entryStatus, lunchStatus, dinnerStatus }
+     409 — duplicate { success:false, code:'DUPLICATE', message }
+     400 — bad QR    { success:false, code:'INVALID_QR', message }
+     404 — no record { success:false, code:'NOT_REGISTERED', message }
+   ─────────────────────────────────────────── */
+exports.selfScan = async (req, res) => {
+  try {
+    const { hackathonId, action } = req.body;
+
+    // Validate action
+    const VALID_ACTIONS = ["entry", "lunch", "dinner"];
+    if (!hackathonId || !action || !VALID_ACTIONS.includes(action)) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_QR",
+        message: "This QR code is not valid for this event.",
+      });
+    }
+
+    // Find this student's participation record for that hackathon
+    const event = await LiveEvent.findOne({
+      student: req.user.id,
+      hackathon: hackathonId,
+    });
+
+    if (!event) {
+      return res.status(404).json({
+        success: false,
+        code: "NOT_REGISTERED",
+        message: "You are not registered for this event.",
+      });
+    }
+
+    // ── Duplicate scan prevention ──────────────────────────────────
+    if (action === "entry" && event.entryStatus === "Entered") {
+      return res.status(409).json({
+        success: false,
+        code: "DUPLICATE",
+        action,
+        message: "Entry has already been recorded for you.",
+        entryStatus: event.entryStatus,
+        lunchStatus: event.lunchStatus,
+        dinnerStatus: event.dinnerStatus,
+      });
+    }
+    if (action === "lunch" && event.lunchStatus === "Claimed") {
+      return res.status(409).json({
+        success: false,
+        code: "DUPLICATE",
+        action,
+        message: "You have already claimed lunch.",
+        entryStatus: event.entryStatus,
+        lunchStatus: event.lunchStatus,
+        dinnerStatus: event.dinnerStatus,
+      });
+    }
+    if (action === "dinner" && event.dinnerStatus === "Claimed") {
+      return res.status(409).json({
+        success: false,
+        code: "DUPLICATE",
+        action,
+        message: "You have already claimed dinner.",
+        entryStatus: event.entryStatus,
+        lunchStatus: event.lunchStatus,
+        dinnerStatus: event.dinnerStatus,
+      });
+    }
+
+    // ── Apply update ───────────────────────────────────────────────
+    const successMessages = {
+      entry:  "Entry successfully recorded! Welcome to the hackathon.",
+      lunch:  "Lunch claimed successfully! Enjoy your meal.",
+      dinner: "Dinner claimed successfully! Enjoy your meal.",
+    };
+
+    if (action === "entry")  event.entryStatus  = "Entered";
+    if (action === "lunch")  event.lunchStatus  = "Claimed";
+    if (action === "dinner") event.dinnerStatus = "Claimed";
+
+    await event.save();
+
+    res.json({
+      success: true,
+      action,
+      message: successMessages[action],
+      entryStatus:  event.entryStatus,
+      lunchStatus:  event.lunchStatus,
+      dinnerStatus: event.dinnerStatus,
+    });
+  } catch (err) {
+    console.error("selfScan error:", err);
+    res.status(500).json({ success: false, code: "SERVER_ERROR", message: "Server error. Please try again." });
+  }
+};
+
+/* ───────────────────────────────────────────
    POST /api/live-event/help
    Student submits a help request
    Body: { issueType, message }
