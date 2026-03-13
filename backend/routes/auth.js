@@ -9,6 +9,8 @@ const {
   login,
   adminLogin,
   getMe,
+  sendCollegeOtp,
+  verifyCollegeOtp,
 } = require("../controllers/authController");
 const { protect } = require("../middleware/auth");
 
@@ -104,5 +106,29 @@ router.post("/admin-login", loginLimiter, adminLogin);
 
 // 6. Get current user (protected)
 router.get("/me", protect, getMe);
+
+// 7. Send College Email OTP (protected — student must be logged in)
+router.post(
+  "/send-college-otp",
+  protect,
+  otpLimiter,
+  validate([
+    body("email").isEmail().withMessage("Please provide a valid college email address.").normalizeEmail(),
+  ]),
+  sendCollegeOtp
+);
+
+// 8. Verify College Email OTP (protected)
+router.post(
+  "/verify-college-otp",
+  protect,
+  validate([
+    body("otp")
+      .isLength({ min: 6, max: 6 })
+      .isNumeric()
+      .withMessage("OTP must be a 6-digit number."),
+  ]),
+  verifyCollegeOtp
+);
 
 module.exports = router;
