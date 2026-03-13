@@ -35,7 +35,7 @@ function HackathonListCard({ hackathon }) {
 
   return (
     <div
-      onClick={() => navigate(`/student/hackathon/${hackathon.slug}`)}
+      onClick={() => navigate(`/hackathon/${hackathon.slug}`)}
       className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row gap-5 hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] transition-shadow cursor-pointer w-full items-stretch"
     >
       {/* 1. Left: Large Logo Box */}

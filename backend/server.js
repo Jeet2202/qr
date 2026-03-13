@@ -4,6 +4,14 @@ const express = require("express");
 const cors    = require("cors");
 const connectDB = require("./config/db");
 
+// Prevent any unhandled crash from killing the server
+process.on('uncaughtException', err => {
+  console.error('❌ uncaughtException:', err.message, err.stack);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ unhandledRejection:', reason);
+});
+
 const app = express();
 
 // Connect to MongoDB
@@ -28,6 +36,7 @@ app.use("/api/auth",              require("./routes/auth"));
 app.use("/api/live-event", require("./routes/liveEvent"));
 app.use("/api/hackathons",        require("./routes/hackathonRoutes"));
 app.use("/api/organizer/events",  require("./routes/eventRoutes"));
+app.use("/api/registrations",     require("./routes/registrationRoutes"));
 
 // Health check
 app.get("/",           (req, res) => res.json({ status: "HackFlow API running 🚀" }));
@@ -36,10 +45,16 @@ app.get("/api/health", (req, res) => res.json({ status: "OK" }));
 // 404 handler
 app.use((req, res) => res.status(404).json({ message: "Route not found" }));
 
-// Global error handler
+// Global error handler — catches multer errors too
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: "Internal server error" });
+  console.error('🔥 Express error:', err.message);
+  if (err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(400).json({ success: false, message: 'File too large. Max 10MB.' });
+  }
+  if (err.message && err.message.includes('Only PDF')) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
+  res.status(500).json({ message: err.message || 'Internal server error' });
 });
 
 const PORT = process.env.PORT || 5000;

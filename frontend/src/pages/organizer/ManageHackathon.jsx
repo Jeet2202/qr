@@ -281,12 +281,26 @@ function ParticipantsTab({ participants, showToast }) {
   const PER = 5;
 
   const filtered = participants.filter(r =>
-    (!search || [r.name, r.email, r.college].some(v => v?.toLowerCase().includes(search.toLowerCase()))) &&
+    (!search || [r.leaderName, r.leaderEmail, r.college, r.teamName].some(v => v?.toLowerCase().includes(search.toLowerCase()))) &&
     (!filter || r.status === filter)
   );
   const paged = filtered.slice(page * PER, page * PER + PER);
   const pages = Math.max(1, Math.ceil(filtered.length / PER));
   const toggleSel = id => setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+
+  const handleShortlist = async (reg) => {
+    try {
+      const token = localStorage.getItem('hf_token');
+      const res = await fetch(`http://localhost:5000/api/registrations/shortlist/${reg._id}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) showToast(`${reg.teamName} shortlisted!`);
+      else showToast('Shortlist failed.');
+    } catch {
+      showToast('Network error.');
+    }
+  };
 
   return (
     <div>
@@ -344,7 +358,7 @@ function ParticipantsTab({ participants, showToast }) {
                 <th className="p-3">
                   <input type="checkbox" className="accent-royal" checked={selected.length === paged.length && paged.length > 0} onChange={() => setSelected(s => s.length === paged.length ? [] : paged.map(r => r.id))} />
                 </th>
-                {['Name', 'Email', 'College', 'Team', 'Status', 'Joined', ''].map(h => (
+                {['Team', 'Leader', 'College', 'AI Score', 'Resume', 'Shortlist', ''].map(h => (
                   <th key={h} className="px-3 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -354,19 +368,57 @@ function ParticipantsTab({ participants, showToast }) {
                 <tr className="border-b border-gray-50 text-center"><td colSpan="8" className="px-4 py-8 text-sm text-gray-500 italic">No participants found.</td></tr>
               )}
               {paged.map(r => (
-                <tr key={r.participantId || r._id} className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
-                  <td className="p-3"><input type="checkbox" className="accent-royal" checked={selected.includes(r.participantId || r._id)} onChange={() => toggleSel(r.participantId || r._id)} onClick={e => e.stopPropagation()} /></td>
-                  <td className="px-3 py-3 cursor-pointer" onClick={() => setDrawer(r)}>
+                <tr key={r._id} className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
+                  <td className="p-3"><input type="checkbox" className="accent-royal" checked={selected.includes(r._id)} onChange={() => toggleSel(r._id)} onClick={e => e.stopPropagation()} /></td>
+                  {/* Team name */}
+                  <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0" style={{ background: avBg(r.name) }}>{initials(r.name)}</div>
-                      <span className="text-sm font-semibold text-dark">{r.name}</span>
+                      <div className="w-7 h-7 rounded-full text-white text-[11px] font-bold flex items-center justify-center shrink-0" style={{ background: avBg(r.teamName || 'T') }}>{(r.teamName || 'T')[0].toUpperCase()}</div>
+                      <span className="text-sm font-semibold text-dark">{r.teamName}</span>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-xs text-gray-500">{r.email}</td>
+                  {/* Leader */}
+                  <td className="px-3 py-3">
+                    <p className="text-xs font-medium text-dark">{r.leaderName}</p>
+                    <p className="text-[11px] text-gray-400">{r.leaderEmail}</p>
+                  </td>
+                  {/* College */}
                   <td className="px-3 py-3 text-xs text-gray-500">{r.college}</td>
-                  <td className="px-3 py-3"><span className="text-xs font-semibold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">{r.team}</span></td>
-                  <td className="px-3 py-3"><SBadge s={r.status} /></td>
-                  <td className="px-3 py-3 text-xs text-gray-400">{r.joined}</td>
+                  {/* AI Score */}
+                  <td className="px-3 py-3">
+                    {r.aiScore != null ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold" style={{ color: sColor(r.aiScore), background: sBg(r.aiScore) }}>
+                        {r.aiScore}/100
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-300 italic">No resume</span>
+                    )}
+                  </td>
+                  {/* Resume link */}
+                  <td className="px-3 py-3">
+                    {r.resumeUrl ? (
+                      <a href={`http://localhost:5000${r.resumeUrl}`} target="_blank" rel="noopener noreferrer"
+                        className="text-xs px-2.5 py-1 rounded-lg border border-royal/20 text-royal hover:bg-royal/5 transition-colors font-semibold">
+                        View
+                      </a>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </td>
+                  {/* Shortlist */}
+                  <td className="px-3 py-3">
+                    {r.shortlisted ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                        <CheckCircle2 size={10} /> Shortlisted
+                      </span>
+                    ) : (
+                      <button onClick={() => handleShortlist(r)}
+                        className="text-xs px-2.5 py-1 rounded-lg border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors font-semibold cursor-pointer">
+                        Shortlist
+                      </button>
+                    )}
+                  </td>
+                  {/* View drawer */}
                   <td className="px-3 py-3"><button onClick={() => setDrawer(r)} className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-500 hover:border-royal hover:text-royal transition-colors cursor-pointer"><Eye size={12} /></button></td>
                 </tr>
               ))}
