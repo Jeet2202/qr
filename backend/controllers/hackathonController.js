@@ -1,5 +1,5 @@
-const Hackathon    = require('../models/Hackathon');
-const slugify      = require('slugify');
+const Hackathon = require('../models/Hackathon');
+const slugify   = require('slugify');
 
 /* ── Helpers ──────────────────────────────────────────── */
 const parse = (v) => {
@@ -15,10 +15,8 @@ const safeDate = (v) => {
 
 const filePath = (file) => {
   if (!file) return '';
-  // On Cloudinary, file.path is the full URL; on local disk it's an OS path.
-  // Normalise to a forward-slash relative URL usable in the browser.
   const p = (file.path || '').replace(/\\/g, '/');
-  if (p.startsWith('http')) return p; // Cloudinary URL — keep as-is
+  if (p.startsWith('http')) return p;
   const idx = p.lastIndexOf('uploads/');
   return idx !== -1 ? p.slice(idx) : p;
 };
@@ -31,9 +29,9 @@ const createHackathon = async (req, res) => {
     let slug = slugify(body.title, { lower: true, strict: true });
     if (await Hackathon.findOne({ slug })) slug = `${slug}-${Date.now()}`;
 
-    const bannerImage            = filePath(req.files?.bannerImage?.[0])         || body.bannerImage || '';
-    const logoImage              = filePath(req.files?.logoImage?.[0])            || body.logoImage   || '';
-    const problemStatementFileUrl = filePath(req.files?.problemStatementFile?.[0]) || '';
+    const bannerImage             = filePath(req.files?.bannerImage?.[0])          || body.bannerImage || '';
+    const logoImage               = filePath(req.files?.logoImage?.[0])             || body.logoImage   || '';
+    const problemStatementFileUrl = filePath(req.files?.problemStatementFile?.[0])  || '';
 
     let problemStatement = undefined;
     if (body.problemStatementName) {
@@ -58,9 +56,13 @@ const createHackathon = async (req, res) => {
       teamSizeMin:          Number(body.teamSizeMin) || 2,
       teamSizeMax:          Number(body.teamSizeMax) || 4,
       registrationDeadline: safeDate(body.registrationDeadline),
+      startDate:            safeDate(body.startDate),
+      endDate:              safeDate(body.endDate),
+      status:               body.status || 'upcoming',
       prizePool:            body.prizePool || '',
-      tags:                 parse(body.tags)   || [],
-      stages:               parse(body.stages) || [],
+      tags:                 parse(body.tags)     || [],
+      stages:               parse(body.stages)   || [],
+      timeline:             parse(body.timeline) || [],
       problemStatement,
       prizes:               parse(body.prizes) || [],
       rules:                parse(body.rules)  || [],
@@ -110,6 +112,26 @@ const updateHackathon = async (req, res) => {
   }
 };
 
+/* ── UPDATE TIMELINE (safe patch — no validator issues) ── */
+const updateHackathonTimeline = async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { timeline } = req.body;
+    if (!Array.isArray(timeline)) {
+      return res.status(400).json({ success: false, message: 'timeline must be an array' });
+    }
+    const hackathon = await Hackathon.findOneAndUpdate(
+      { slug },
+      { $set: { timeline } },
+      { new: true }
+    );
+    if (!hackathon) return res.status(404).json({ success: false, message: 'Not found' });
+    res.json({ success: true, timeline: hackathon.timeline });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 /* ── DELETE ───────────────────────────────────────────── */
 const deleteHackathon = async (req, res) => {
   try {
@@ -125,5 +147,6 @@ module.exports = {
   getAllHackathons,
   getHackathonBySlug,
   updateHackathon,
+  updateHackathonTimeline,
   deleteHackathon,
 };

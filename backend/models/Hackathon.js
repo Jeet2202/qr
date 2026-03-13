@@ -1,5 +1,12 @@
 const mongoose = require('mongoose');
 
+const timelineEventSchema = new mongoose.Schema({
+  title:       { type: String, required: true },
+  description: { type: String, default: '' },
+  date:        { type: String, default: '' },
+  time:        { type: String, default: '' },
+});
+
 const stageSchema = new mongoose.Schema({
   round: { type: String, required: true },
   name: { type: String, required: true },
@@ -25,12 +32,16 @@ const hackathonSchema = new mongoose.Schema(
     teamSizeMin: { type: Number, default: 2 },
     teamSizeMax: { type: Number, default: 4 },
     registrationDeadline: { type: Date },
+    startDate: { type: Date },
+    endDate:   { type: Date },
+    status: { type: String, enum: ['upcoming', 'live', 'completed'], default: 'upcoming' },
     prizePool: { type: String, default: '' },
     tags: [{ type: String }],
     
     description: { type: String, required: true },
     
     stages: [stageSchema],
+    timeline: [timelineEventSchema],
     
     problemStatement: {
       title: { type: String },
@@ -44,9 +55,11 @@ const hackathonSchema = new mongoose.Schema(
 
     organizerContact: { type: String, required: true },
     whatsappLink: { type: String, default: '' },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 );
+
 
 
 

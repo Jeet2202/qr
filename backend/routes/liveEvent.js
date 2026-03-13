@@ -9,6 +9,9 @@ router.get("/shortlisted", protect, requireRole("student"), ctrl.checkShortliste
 router.post("/help",       protect, requireRole("student"), ctrl.submitHelpRequest);
 router.get("/help",        protect, requireRole("student"), ctrl.getMyHelpRequests);
 
+// ── Student self-scan (participant scans venue QR themselves) ────
+router.post("/self-scan", protect, requireRole("student"), ctrl.selfScan);
+
 // ── Organizer endpoints ──────────────────────────────────────────
 router.post("/scan",                protect, requireRole("organizer"), ctrl.scanQR);
 router.patch("/help/:id/resolve",   protect, requireRole("organizer"), ctrl.resolveHelpRequest);
