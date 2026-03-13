@@ -37,8 +37,21 @@ const upload = multer({
 });
 
 /* ── Organizer routes ── */
-router.post('/organizer/verification',     protect, requireRole('organizer'), upload.single('proofDocument'), submitVerification);
+// Wrap multer in a manual error handler so file-type/size errors return 400 not 500
+router.post('/organizer/verification', protect, requireRole('organizer'), (req, res, next) => {
+  upload.single('proofDocument')(req, res, (err) => {
+    if (err) {
+      const msg = err.code === 'LIMIT_FILE_SIZE'
+        ? 'Proof document must be under 5 MB'
+        : err.message || 'File upload error';
+      return res.status(400).json({ message: msg });
+    }
+    next();
+  });
+}, submitVerification);
+
 router.get('/organizer/verification/me',   protect, requireRole('organizer'), getMyVerification);
+
 
 /* ── Admin routes ── */
 router.get('/admin/verifications',         protect, requireRole('admin'), getAllVerifications);

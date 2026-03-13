@@ -253,3 +253,114 @@ exports.getMe = async (req, res) => {
     return fail(res, 500, "Server error.");
   }
 };
+
+/* ─────────────────────────────────────────────────────────────────
+   7. POST /api/auth/send-college-otp  (protected)
+   Validates college email domain, sends OTP to college email.
+───────────────────────────────────────────────────────────────── */
+const ALLOWED_COLLEGE_DOMAIN = "@svkmmumbai.onmicrosoft.com";
+
+exports.sendCollegeOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const collegeEmail = email.toLowerCase().trim();
+
+    // Domain check
+    if (!collegeEmail.endsWith(ALLOWED_COLLEGE_DOMAIN)) {
+      return fail(
+        res,
+        400,
+        `Please use your college email ending with ${ALLOWED_COLLEGE_DOMAIN}`
+      );
+    }
+
+    // Load the logged-in user
+    const user = await User.findById(req.user.id);
+    if (!user) return fail(res, 404, "User not found.");
+
+    // Already verified?
+    if (user.collegeVerified) {
+      return fail(res, 409, "College email already verified.");
+    }
+
+    // Resend cooldown check (1 min)
+    if (user.collegeOtpSentAt) {
+      const elapsed = Date.now() - new Date(user.collegeOtpSentAt).getTime();
+      if (elapsed < OTP_RESEND_COOLDOWN_MS) {
+        const waitSec = Math.ceil((OTP_RESEND_COOLDOWN_MS - elapsed) / 1000);
+        return fail(res, 429, `Please wait ${waitSec}s before requesting another OTP.`);
+      }
+    }
+
+    const otp = generateOtp();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const expiry = new Date(Date.now() + OTP_TTL_MS);
+
+    user.collegeOtp = otpHash;
+    user.collegeOtpExpiry = expiry;
+    user.collegeOtpSentAt = new Date();
+    // Temporarily store the college email being verified
+    user.collegeEmail = collegeEmail;
+    await user.save({ validateBeforeSave: false });
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;border:1px solid #e5e7eb;border-radius:10px;padding:32px">
+        <h2 style="color:#6366f1;margin-bottom:8px">HackFlow – Student Email Verification</h2>
+        <p style="color:#374151">Use the OTP below to verify your college email address. It expires in <strong>5 minutes</strong>.</p>
+        <div style="font-size:36px;font-weight:700;letter-spacing:8px;color:#111827;text-align:center;padding:24px 0">${otp}</div>
+        <p style="color:#6b7280;font-size:13px">If you did not request this, you can safely ignore this email.</p>
+      </div>`;
+
+    await sendEmail(collegeEmail, "Student Email Verification", html);
+
+    return ok(res, 200, { message: "OTP sent to your college email. Valid for 5 minutes." });
+  } catch (err) {
+    console.error("sendCollegeOtp error:", err);
+    return fail(res, 500, "Failed to send OTP. Please try again.");
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────────
+   8. POST /api/auth/verify-college-otp  (protected)
+   Confirms OTP and marks the student as college-verified.
+───────────────────────────────────────────────────────────────── */
+exports.verifyCollegeOtp = async (req, res) => {
+  try {
+    const { otp } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return fail(res, 404, "User not found.");
+
+    if (!user.collegeOtp || !user.collegeOtpExpiry) {
+      return fail(res, 400, "No OTP found. Please request a new one.");
+    }
+
+    if (new Date() > new Date(user.collegeOtpExpiry)) {
+      user.collegeOtp = null;
+      user.collegeOtpExpiry = null;
+      await user.save({ validateBeforeSave: false });
+      return fail(res, 400, "OTP has expired. Please request a new one.");
+    }
+
+    const isMatch = await bcrypt.compare(otp, user.collegeOtp);
+    if (!isMatch) {
+      return fail(res, 400, "Incorrect OTP. Please try again.");
+    }
+
+    // Mark verified, clear college OTP fields
+    user.collegeVerified = true;
+    user.collegeOtp = null;
+    user.collegeOtpExpiry = null;
+    user.collegeOtpSentAt = null;
+    await user.save({ validateBeforeSave: false });
+
+    return ok(res, 200, {
+      message: "College email verified successfully!",
+      collegeVerified: true,
+      collegeEmail: user.collegeEmail,
+    });
+  } catch (err) {
+    console.error("verifyCollegeOtp error:", err);
+    return fail(res, 500, "Server error during OTP verification.");
+  }
+};

@@ -49,6 +49,7 @@ export default function App() {
         <Route path="/organizer/profile"                element={<ProtectedRoute role="organizer"><OrganizerProfile /></ProtectedRoute>} />
         <Route path="/organizer/create"                 element={<ProtectedRoute role="organizer"><CreateHackathon /></ProtectedRoute>} />
         <Route path="/organizer/manage"                 element={<ProtectedRoute role="organizer"><ManageHackathon /></ProtectedRoute>} />
+        <Route path="/organizer/manage/:slug"            element={<ProtectedRoute role="organizer"><ManageHackathon /></ProtectedRoute>} />
         <Route path="/organizer/event/:id"              element={<ProtectedRoute role="organizer"><EventManagement /></ProtectedRoute>} />
         <Route path="/organizer/events"                 element={<ProtectedRoute role="organizer"><EventManagement /></ProtectedRoute>} />
         <Route path="/organizer/certificates"           element={<ProtectedRoute role="organizer"><CertificateTemplatesPage /></ProtectedRoute>} />
