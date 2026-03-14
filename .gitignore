@@ -50,5 +50,15 @@ data/
 
 # dotenv
 .env
+# Python virtual environment
+venv/
+.venv/
+env/
+ENV/
 
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
 
