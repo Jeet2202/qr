@@ -28,6 +28,11 @@ const registrationSchema = new mongoose.Schema(
     extractedText: { type: String, default: null },
     aiScore: { type: Number, default: null },
     shortlisted: { type: Boolean, default: false },
+    // ── Extra fields ────────────────────────────────────────────
+    domain:     { type: String, default: '' },
+    psId:       { type: String, default: '' },
+    githubLink: { type: String, default: '' },
+
   },
   { timestamps: true }
 );

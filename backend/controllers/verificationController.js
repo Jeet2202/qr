@@ -82,7 +82,20 @@ const submitVerification = async (req, res) => {
 ──────────────────────────────────────────────────────────────────────────── */
 const getMyVerification = async (req, res) => {
   try {
-    const verification = await OrganizerVerification.findOne({ organizerId: req.user.id });
+    const [verification, user] = await Promise.all([
+      OrganizerVerification.findOne({ organizerId: req.user.id }),
+      User.findById(req.user.id).select('orgVerified'),
+    ]);
+
+    // If the verification document claims 'approved' but the User's orgVerified flag
+    // is false (e.g. admin revoked it manually), override the status so the frontend
+    // reflects the true state.
+    if (verification && verification.status === 'approved' && user && !user.orgVerified) {
+      const corrected = verification.toObject();
+      corrected.status = 'pending';
+      return res.json({ verification: corrected });
+    }
+
     res.json({ verification: verification || null });
   } catch (err) {
     console.error('[getMyVerification]', err);
@@ -138,6 +151,8 @@ const reviewVerification = async (req, res) => {
     // If approved — set orgVerified on User (not isVerified which is for email OTP)
     if (action === 'approve') {
       await User.findByIdAndUpdate(verification.organizerId, { orgVerified: true });
+      const { addLoyaltyPoints } = require('../utils/loyaltyProcessor');
+      await addLoyaltyPoints(verification.organizerId, 50, 'Organizer Profile Approved');
     }
     // If rejected — ensure orgVerified is false
     if (action === 'reject') {
