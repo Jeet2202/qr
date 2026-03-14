@@ -1,6 +1,7 @@
 const CocomJoinCode = require('../models/CocomJoinCode');
 const CocomMember   = require('../models/CocomMember');
 const CocomTask     = require('../models/CocomTask');
+const TreasureHunt  = require('../models/TreasureHunt');
 
 /* ── Generate Join Code ─────────────────────────────────── */
 exports.generateJoinCode = async (req, res) => {
@@ -191,7 +192,7 @@ exports.getMe = async (req, res) => {
     const user = await User.findById(req.user.id).select('name email');
     if (!user) return res.status(404).json({ success: false, joined: false });
 
-    const member = await CocomMember.findOne({ email: user.email });
+    const member = await CocomMember.findOne({ email: user.email }).sort({ createdAt: -1 });
     if (!member) return res.json({ success: true, joined: false });
 
     return res.json({
@@ -213,11 +214,17 @@ exports.getDashboard = async (req, res) => {
   try {
     const { memberId } = req.params;
 
-    // Fetch member + their tasks
+    // Fetch the requested member record
     const member = await CocomMember.findById(memberId);
     if (!member) return res.status(404).json({ success: false, message: 'Member not found' });
 
-    const tasks = await CocomTask.find({ assigned_to: memberId }).sort({ createdAt: -1 });
+    // Collect ALL CocomMember IDs for this person's email (they may have joined multiple times
+    // or under different hackathon_ids, and the organizer may have assigned a task to any of them)
+    const allMemberDocs = await CocomMember.find({ email: member.email }).select('_id');
+    const allMemberIds  = allMemberDocs.map(m => m._id);
+
+    // Fetch tasks assigned to any of this user's member IDs
+    const tasks = await CocomTask.find({ assigned_to: { $in: allMemberIds } }).sort({ createdAt: -1 });
 
     // Fetch hackathon info: try by stored hackathon_id first, fallback to latest hackathon
     const Hackathon = require('../models/Hackathon');
@@ -290,5 +297,119 @@ exports.deleteTask = async (req, res) => {
   } catch (err) {
     console.error('deleteTask error:', err);
     res.status(500).json({ success: false, message: 'Failed to delete task' });
+  }
+};
+
+/* ───────────────────────────────────────────
+   GET /api/organizer/cocom/gamification/pending
+   Returns all in_progress treasure hunt tasks for the CoCom's hackathon
+   ─────────────────────────────────────────── */
+exports.getPendingTreasureHunts = async (req, res) => {
+  try {
+    const User      = require('../models/User');
+    const Hackathon = require('../models/Hackathon');
+    const mongoose  = require('mongoose');
+
+    // Determine hackathon via the logged-in CoCom member
+    const user   = await User.findById(req.user.id).select('email');
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const member = await CocomMember.findOne({ email: user.email }).sort({ createdAt: -1 });
+    let hackathonId = member?.hackathon_id || null;
+
+    let h = null;
+    if (hackathonId && mongoose.Types.ObjectId.isValid(hackathonId)) {
+      h = await Hackathon.findById(hackathonId).select('_id');
+    }
+    if (!h) {
+      h = await Hackathon.findOne().sort({ createdAt: -1 }).select('_id');
+      hackathonId = h?._id || null;
+    }
+
+    if (!hackathonId) {
+      return res.json({ success: true, tasks: [] });
+    }
+
+    // Auto-expire tasks that have timed out
+    const now = new Date();
+    const allInProgress = await TreasureHunt.find({ hackathon: hackathonId, status: 'in_progress' });
+    for (const t of allInProgress) {
+      const elapsedMs = now - new Date(t.startTime);
+      if (elapsedMs > t.timeLimitMinutes * 60 * 1000) {
+        t.status = 'expired';
+        await t.save();
+      }
+    }
+
+    // Fetch remaining in_progress tasks
+    const tasks = await TreasureHunt.find({ hackathon: hackathonId, status: 'in_progress' })
+      .populate('student', 'name email')
+      .sort({ startTime: 1 });
+
+    const formatted = tasks.map(t => {
+      const elapsedMs    = now - new Date(t.startTime);
+      const remainingSec = Math.max(0, Math.round((t.timeLimitMinutes * 60 * 1000 - elapsedMs) / 1000));
+      return {
+        _id:              t._id,
+        questionText:     t.questionText,
+        questionIndex:    t.questionIndex,
+        timeLimitMinutes: t.timeLimitMinutes,
+        startTime:        t.startTime,
+        remainingSec,
+        status:           t.status,
+        studentName:      t.student?.name  || 'Student',
+        studentEmail:     t.student?.email || '',
+        studentId:        t.student?._id,
+      };
+    });
+
+    return res.json({ success: true, tasks: formatted });
+  } catch (err) {
+    console.error('getPendingTreasureHunts error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+/* ───────────────────────────────────────────
+   PUT /api/organizer/cocom/gamification/:id/verify
+   CoComm member verifies (accepts) a student's treasure hunt task
+   ─────────────────────────────────────────── */
+const GOODIES = [
+  'A free can of Red Bull 💚',
+  'An exclusive HackFlow T-shirt 👕',
+  'A \u20b9500 Amazon Gift Card 🎁',
+  'A cool hackathon sticker pack 🎨',
+  'A premium notebook & pen set 📓',
+  'A HackFlow tote bag 🛍️',
+  'A chocolate hamper 🍫',
+  'A pair of wireless earbuds 🎧',
+  'A limited edition HackFlow hoodie 🪄',
+  'A mystery goodies box 📦',
+];
+
+exports.verifyTreasureHunt = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const hunt = await TreasureHunt.findById(id);
+    if (!hunt) return res.status(404).json({ success: false, message: 'Task not found' });
+    if (hunt.status !== 'in_progress') {
+      return res.status(400).json({ success: false, message: `Task is already ${hunt.status}` });
+    }
+
+    const reward = GOODIES[Math.floor(Math.random() * GOODIES.length)];
+    hunt.status      = 'completed';
+    hunt.verifiedBy  = req.user.id;
+    hunt.goodiesReward = reward;
+    await hunt.save();
+
+    return res.json({
+      success:      true,
+      goodiesReward: reward,
+      message:       'Task verified! Student will be rewarded.',
+    });
+  } catch (err) {
+    console.error('verifyTreasureHunt error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };

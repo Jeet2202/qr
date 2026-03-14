@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   PlusCircle, FileText, CalendarCheck, Award,
   Users, Trophy, CheckCircle2, Clock, Bell,
-  TrendingUp, Calendar, ShieldCheck, ArrowUpRight, Zap, BarChart2,
+  TrendingUp, Calendar, ShieldCheck, ArrowUpRight, Zap, BarChart2, LogOut,
 } from 'lucide-react';
 import axios from 'axios';
 import OrganizerSidebar from '../../components/OrganizerSidebar';
@@ -66,9 +66,33 @@ export default function OrganizerDashboard() {
     setActiveHackathonId(id);
   };
 
+  // Populate user info
   useEffect(() => {
-    // Fetch all hackathons from the standard public endpoint
-    axios.get('http://localhost:5000/api/hackathons')
+    const token = localStorage.getItem('hf_token');
+    if (token) {
+      axios.get('http://localhost:5000/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => setUser(res.data.user))
+      .catch(err => {
+        console.error('Failed to fetch user:', err);
+        const name  = localStorage.getItem('hf_name')  || 'Organizer';
+        const email = localStorage.getItem('hf_email') || '';
+        setUser({ name, email });
+      });
+    } else {
+      const name  = localStorage.getItem('hf_name')  || 'Organizer';
+      const email = localStorage.getItem('hf_email') || '';
+      setUser({ name, email });
+    }
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem('hf_token');
+    // Fetch only THIS organizer's hackathons via the protected endpoint
+    axios.get('http://localhost:5000/api/organizer/hackathons', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
       .then(res => {
         const list = res.data.data || [];
         setHackathons(list);
@@ -90,21 +114,31 @@ export default function OrganizerDashboard() {
       <div className="transition-all duration-300 lg:pl-60">
 
         {/* ── Top Navbar ── */}
-        <div className="sticky top-0 z-20 h-[60px] bg-white/90 backdrop-blur border-b border-gray-100 flex items-center justify-between px-6">
-          <span className="font-semibold text-dark text-sm">Organizer Dashboard</span>
-          <div className="flex items-center gap-2">
+        <div className="sticky top-0 z-20 h-[60px] bg-white/90 backdrop-blur border-b border-gray-100 flex items-center justify-between px-4 sm:px-6 pl-14 lg:pl-6">
+          <span className="font-semibold text-dark text-sm hidden sm:block">Organizer Dashboard</span>
+          <div className="flex items-center gap-1.5 sm:gap-2 ml-auto">
             <Link
               to="/organizer/profile"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-royal border border-royal/20 rounded-lg hover:bg-royal/5 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-royal border border-royal/20 rounded-lg hover:bg-royal/5 transition-colors"
             >
-              <ShieldCheck size={12} /> My Profile
+              <ShieldCheck size={12} /><span className="hidden sm:inline">My Profile</span>
             </Link>
             <Link
               to="/organizer/create"
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-royal rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-royal/20"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 text-xs font-bold text-white bg-royal rounded-lg hover:bg-blue-700 transition-colors shadow-sm shadow-royal/20"
             >
-              <PlusCircle size={12} /> Create Hackathon
+              <PlusCircle size={12} /><span className="hidden sm:inline">Create Hackathon</span><span className="sm:hidden">New</span>
             </Link>
+            <button
+              onClick={() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('hf_token');
+                navigate('/');
+              }}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+            >
+              <LogOut size={12} /><span className="hidden sm:inline">Sign Out</span>
+            </button>
           </div>
         </div>
 
@@ -113,28 +147,60 @@ export default function OrganizerDashboard() {
           {/* ── Profile Header Card ── */}
           <div className="rounded-2xl mb-6 overflow-hidden border border-gray-100 shadow-[0_2px_16px_rgba(30,100,255,0.07)]">
             <div className="h-1.5 bg-gradient-to-r from-royal via-blue-500 to-violet-500" />
-            <div className="bg-white px-6 py-5 flex items-center gap-4 flex-wrap">
-              <div className="relative shrink-0">
-                <div className="w-14 h-14 rounded-2xl bg-royal/10 text-royal flex items-center justify-center font-bold text-xl ring-4 ring-royal/10 uppercase">
+            <div className="bg-white px-4 sm:px-6 py-5">
+
+              {/* Avatar + name row */}
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-royal/10 text-royal flex items-center justify-center font-bold text-lg sm:text-xl ring-4 ring-royal/10 uppercase shrink-0">
                   {user?.name?.charAt(0) || 'O'}
                 </div>
+                <div className="flex-1 min-w-0">
+                  <h1 className="text-lg sm:text-xl font-extrabold text-dark truncate">{user?.name || 'Organizer'}</h1>
+                  <p className="text-xs sm:text-sm text-gray-500 truncate">{user?.email || 'organizer@hackflow.in'}</p>
+                </div>
+                {/* Stats — sm+ only, shown inline */}
+                <div className="hidden sm:flex items-center gap-5 border-l border-gray-100 pl-5 shrink-0">
+                  {[
+                    [stats.totalHackathons,  'Events'],
+                    [stats.totalParticipants, 'Participants'],
+                    [stats.totalSubmissions,  'Submissions'],
+                  ].map(([v, l]) => (
+                    <div key={l} className="text-center">
+                      <p className="text-xl font-extrabold text-dark">{v}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{l}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h1 className="text-xl font-extrabold text-dark">{user?.name || 'Organizer'}</h1>
-                <p className="text-sm text-gray-500">{user?.email || 'organizer@hackflow.in'}</p>
-              </div>
-              <div className="flex items-center gap-6 sm:border-l sm:border-gray-100 sm:pl-6">
+
+              {/* Badges */}
+              {user?.loyaltyPoints !== undefined && (
+                <div className="flex items-center gap-2 mt-3 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-bold">
+                    <Award size={12} className="text-amber-500" />
+                    {user.loyaltyPoints} pts
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-bold">
+                    <Trophy size={12} className="text-emerald-500" />
+                    {user.totalHackathonsHosted || 0} Hosted
+                  </span>
+                </div>
+              )}
+
+              {/* Stats — mobile only, full-width 3-col grid */}
+              <div className="sm:hidden mt-4 pt-3.5 border-t border-gray-100 grid grid-cols-3 divide-x divide-gray-100">
                 {[
-                  [stats.totalHackathons,   'Events'],
-                  [stats.totalParticipants,  'Participants'],
-                  [stats.totalSubmissions,   'Submissions'],
+                  [stats.totalHackathons,  'Events'],
+                  [stats.totalParticipants, 'Participants'],
+                  [stats.totalSubmissions,  'Submissions'],
                 ].map(([v, l]) => (
-                  <div key={l} className="text-center">
+                  <div key={l} className="text-center px-2 py-1">
                     <p className="text-xl font-extrabold text-dark">{v}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{l}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5 leading-tight">{l}</p>
                   </div>
                 ))}
               </div>
+
             </div>
           </div>
 
@@ -267,33 +333,34 @@ export default function OrganizerDashboard() {
               </div>
             </div>
 
-            {/* Activity Feed — 1/3 */}
+            {/* Points History — 1/3 */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-sm font-bold text-dark flex items-center gap-2">
-                  <Bell size={14} className="text-violet-500" /> Recent Activity
+                  <Award size={14} className="text-amber-500" /> Points History
                 </h2>
               </div>
-              <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden">
-                {activities.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden max-h-[400px] overflow-y-auto">
+                {!user?.loyaltyHistory?.length ? (
                   <div className="p-6 text-center">
-                    <Bell size={24} className="text-gray-300 mx-auto mb-2" />
-                    <p className="text-xs text-gray-500">No recent activity</p>
+                    <Award size={24} className="text-gray-300 mx-auto mb-2" />
+                    <p className="text-xs text-gray-500">No points history yet</p>
                   </div>
-                ) : activities.map((a, i) => {
-                  const conf = ACTIVITY_ICONS[a.actionType] || ACTIVITY_ICONS.info;
-                  const Icon = conf.icon;
+                ) : user.loyaltyHistory.slice().reverse().map((a, i) => {
                   return (
                     <div
                       key={a._id || i}
-                      className={`flex gap-3 p-4 hover:bg-gray-50 transition-colors ${i < activities.length - 1 ? 'border-b border-gray-100' : ''}`}
+                      className={`flex gap-3 p-4 hover:bg-gray-50 transition-colors ${i < user.loyaltyHistory.length - 1 ? 'border-b border-gray-100' : ''}`}
                     >
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${conf.cls}`}>
-                        <Icon size={13} />
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 bg-amber-50 text-amber-500`}>
+                        <Award size={13} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-700 leading-snug">{a.description}</p>
-                        <p className="text-xs text-gray-400 mt-0.5">{new Date(a.createdAt).toLocaleString()}</p>
+                        <p className="text-sm font-semibold text-gray-700 leading-snug">{a.action}</p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">{new Date(a.date).toLocaleDateString()} {new Date(a.date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                      </div>
+                      <div className="text-sm font-extrabold text-emerald-600 shrink-0 self-center bg-emerald-50 px-2 py-1 rounded-lg">
+                        +{a.points} px
                       </div>
                     </div>
                   );

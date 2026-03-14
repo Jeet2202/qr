@@ -135,30 +135,78 @@ exports.deleteTemplate = async (req, res) => {
 
 /**
  * GET /api/certificates/recipients/:hackathonId
- * Returns all students signed up in the system (role = 'student').
- * These are the real user accounts, not hackathon registration records.
+ * Returns only students who are SHORTLISTED for this organizer's hackathon.
+ * Admins can see all shortlisted students for any hackathon.
  */
 exports.getRecipients = async (req, res) => {
   try {
     const { hackathonId } = req.params;
 
-    // Verify the hackathon exists
-    const hackathon = await Hackathon.findById(hackathonId).lean();
-    if (!hackathon) return res.status(404).json({ message: 'Hackathon not found' });
+    // Resolve hackathon by ObjectId OR slug (handles stale localStorage values)
+    let hackathon = null;
+    if (hackathonId.match(/^[a-f\d]{24}$/i)) {
+      hackathon = await Hackathon.findById(hackathonId).lean();
+    }
+    if (!hackathon) {
+      hackathon = await Hackathon.findOne({ slug: hackathonId }).lean();
+    }
+    if (!hackathon) {
+      console.error(`[getRecipients] Hackathon not found: "${hackathonId}"`);
+      return res.status(404).json({ message: `Hackathon not found (id/slug: ${hackathonId})` });
+    }
 
-    // Always fetch real student accounts — people who signed up with role: 'student'
-    // isVerified: true means they completed OTP verification
-    const students = await User.find({ role: 'student', isVerified: true })
-      .select('name email createdAt')
-      .sort({ createdAt: -1 })
+    console.log(`[getRecipients] Found hackathon: "${hackathon.title}" (${hackathon._id})`);
+
+    // Fetch shortlisted registrations
+    const shortlistedRegs = await Registration.find({
+      hackathon: hackathonId,
+      shortlisted: true,
+    }).lean();
+
+    // Also pull Team docs to get member emails not yet synced into Registration
+    const Team = require('../models/Team');
+    const teamDocs = await Team.find({ hackathonId })
+      .populate('members', 'name email')
       .lean();
+    const teamByLeader = {};
+    for (const t of teamDocs) {
+      if (t.leaderEmail) teamByLeader[t.leaderEmail.toLowerCase()] = t;
+    }
 
-    const recipients = students.map(u => ({
-      id:    u._id.toString(),
-      name:  u.name && u.name.trim() ? u.name.trim() : u.email.split('@')[0],
-      email: u.email,
-      type:  'participant',
-    }));
+    const recipients = [];
+    for (const r of shortlistedRegs) {
+      // Always include the leader
+      recipients.push({
+        id:    r._id.toString() + '_leader',
+        name:  (r.leaderName || '').trim() || r.leaderEmail.split('@')[0],
+        email: r.leaderEmail,
+        type:  'participant',
+        teamName: r.teamName,
+      });
+
+      // Determine members list — Team doc is authoritative
+      const teamDoc = teamByLeader[(r.leaderEmail || '').toLowerCase()];
+      let members = [];
+      if (teamDoc && teamDoc.members && teamDoc.members.length > 0) {
+        const leaderEmail = (r.leaderEmail || '').toLowerCase();
+        members = teamDoc.members
+          .filter(m => (m.email || '').toLowerCase() !== leaderEmail)
+          .map(m => ({ name: m.name || '', email: m.email || '' }));
+      } else {
+        members = (r.teamMembers || []).map(m => ({ name: m.name || '', email: m.email || '' }));
+      }
+
+      for (const m of members) {
+        if (!m.email) continue;
+        recipients.push({
+          id:    r._id.toString() + '_' + m.email,
+          name:  m.name || m.email.split('@')[0],
+          email: m.email,
+          type:  'participant',
+          teamName: r.teamName,
+        });
+      }
+    }
 
     res.json({
       hackathon: { name: hackathon.title, date: hackathon.registrationDeadline, organizer: hackathon.organizerName },
@@ -169,6 +217,7 @@ exports.getRecipients = async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch recipients' });
   }
 };
+
 
 /* ═══════════════════════════════════════════════════════════════════
    GENERATION & EMAIL
@@ -206,6 +255,10 @@ exports.generateCertificates = async (req, res) => {
 
     // Respond immediately
     res.status(202).json({ message: 'Generation started', total: docs.length });
+
+    // ── Loyalty points on certificate generation ──
+    const { addLoyaltyPoints } = require('../utils/loyaltyProcessor');
+    addLoyaltyPoints(hackathon.createdBy, 20, 'Certificates Generated');
 
     // ── Background processing ────────────────────────────────────────
     (async () => {
@@ -258,7 +311,15 @@ exports.generateCertificates = async (req, res) => {
  */
 exports.getGenerationStatus = async (req, res) => {
   try {
-    const certs = await Certificate.find({ hackathonId: req.params.hackathonId }).lean();
+    const id = req.params.hackathonId;
+    // Accept both slug and ObjectId — store hackathonId as ObjectId in Certificate
+    // But Certificate.hackathonId may have been stored as slug too, query both ways
+    let hackathon = null;
+    if (id.match(/^[a-f\d]{24}$/i)) hackathon = await Hackathon.findById(id).lean();
+    if (!hackathon) hackathon = await Hackathon.findOne({ slug: id }).lean();
+    const hackId = hackathon?._id || id;
+
+    const certs = await Certificate.find({ hackathonId: hackId }).lean();
     const total     = certs.length;
     const pending   = certs.filter(c => c.status === 'pending').length;
     const generated = certs.filter(c => c.status === 'generated').length;
@@ -382,29 +443,53 @@ async function buildCertificateBuffer(base64Image, name, nameX, nameY, fontSize,
 }
 
 exports.generatePersonalized = async (req, res) => {
-  const { hackathonId } = req.params;
+  const id = req.params.hackathonId;
   const { templateId, recipients: providedRecipients, sendToAll = false } = req.body;
   try {
-    const template  = await CertificateTemplate.findById(templateId).lean();
-    if (!template)                      return res.status(404).json({ message: 'Template not found' });
-    if (!template.backgroundImageUrl)   return res.status(400).json({ message: 'Template has no background image.' });
-    const hackathon = await Hackathon.findById(hackathonId).lean();
-    if (!hackathon)                     return res.status(404).json({ message: 'Hackathon not found' });
+    const template = await CertificateTemplate.findById(templateId).lean();
+    if (!template)                    return res.status(404).json({ message: 'Template not found' });
+    if (!template.backgroundImageUrl) return res.status(400).json({ message: 'Template has no background image.' });
+
+    // Resolve hackathon by slug OR ObjectId
+    let hackathon = null;
+    if (id.match(/^[a-f\d]{24}$/i)) hackathon = await Hackathon.findById(id).lean();
+    if (!hackathon) hackathon = await Hackathon.findOne({ slug: id }).lean();
+    if (!hackathon) return res.status(404).json({ message: 'Hackathon not found' });
+    const hackathonId = hackathon._id;  // always use the real ObjectId from here on
 
     let recipients = providedRecipients || [];
     if (sendToAll || recipients.length === 0) {
-      // Always pull from the real student user accounts —
-      // same source as getRecipients so the UI and send list are always in sync.
-      const students = await User.find({ role: 'student', isVerified: true })
-        .select('name email')
+      // Pull shortlisted registrations + Team members
+      const { Team } = require('../models/Team');
+      const shortlistedRegs = await Registration.find({ hackathon: hackathonId, shortlisted: true }).lean();
+      const teamDocs = await Team.find({ hackathonId })
+        .populate('members', 'name email')
         .lean();
-      recipients = students.map(u => ({
-        name:  u.name && u.name.trim() ? u.name.trim() : u.email.split('@')[0],
-        email: u.email,
-        type:  'participant',
-      }));
+      const teamByLeader = {};
+      for (const t of teamDocs) {
+        if (t.leaderEmail) teamByLeader[t.leaderEmail.toLowerCase()] = t;
+      }
+
+      recipients = [];
+      for (const r of shortlistedRegs) {
+        // Leader
+        recipients.push({
+          name:  (r.leaderName || '').trim() || r.leaderEmail.split('@')[0],
+          email: r.leaderEmail,
+          type:  'participant',
+        });
+        // Other members from Team doc
+        const teamDoc = teamByLeader[(r.leaderEmail || '').toLowerCase()];
+        const members = teamDoc?.members?.length > 0
+          ? teamDoc.members.filter(m => (m.email || '').toLowerCase() !== (r.leaderEmail || '').toLowerCase())
+          : (r.teamMembers || []);
+        for (const m of members) {
+          if (!m.email) continue;
+          recipients.push({ name: m.name || m.email.split('@')[0], email: m.email, type: 'participant' });
+        }
+      }
     }
-    if (recipients.length === 0) return res.status(400).json({ message: 'No recipients found. No students are registered or signed up.' });
+    if (recipients.length === 0) return res.status(400).json({ message: 'No shortlisted recipients found for this hackathon.' });
 
     // ── BUG FIX: insertMany bypasses Mongoose pre-save hooks, so
     //    certificateNumber is never generated and the unique constraint
@@ -423,6 +508,10 @@ exports.generatePersonalized = async (req, res) => {
     const docs = await Certificate.insertMany(insertDocs, { ordered: false });
 
     res.status(202).json({ message: 'Generation started', total: docs.length });
+
+    // ── Loyalty points on certificate generation ──
+    const { addLoyaltyPoints } = require('../utils/loyaltyProcessor');
+    addLoyaltyPoints(hackathon.createdBy, 20, 'Certificates Generated');
 
     const nameX = template.nameX ?? 0.5, nameY = template.nameY ?? 0.5;
     const fontSize = template.fontSize ?? 52, nameColor = template.nameColor ?? '#1E3A8A';
@@ -459,5 +548,38 @@ exports.generatePersonalized = async (req, res) => {
   } catch (err) {
     console.error('generatePersonalized error:', err);
     res.status(500).json({ message: 'Failed to start generation', error: err.message });
+  }
+};
+/**
+ * GET /api/certificates/my
+ * Returns all certificates issued to the currently logged-in student.
+ * Matched by recipientEmail == user.email.
+ */
+exports.getMyCertificates = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('email').lean();
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const certs = await Certificate.find({ recipientEmail: user.email })
+      .populate('hackathonId', 'title organizerName')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const result = certs.map(c => ({
+      certificateId:   c.certificateNumber || c._id.toString(),
+      hackathonTitle:  c.hackathonId?.title        || 'Hackathon',
+      organizer:       c.hackathonId?.organizerName || 'Organizer',
+      issueDate:       c.emailSentAt
+                         ? new Date(c.emailSentAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+                         : new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }),
+      rank:            c.position || (c.recipientType === 'winner' ? 'Winner' : 'Participant'),
+      certificateUrl:  c.fileUrl || null,
+      status:          c.status,
+    }));
+
+    res.json({ certificates: result });
+  } catch (err) {
+    console.error('getMyCertificates error:', err);
+    res.status(500).json({ message: 'Failed to fetch certificates' });
   }
 };

@@ -5,6 +5,9 @@ const { protect, requireRole } = require('../middleware/auth');
 const { upload } = require('../middleware/uploadMiddleware'); // memoryStorage — no disk writes
 const ctrl = require('../controllers/certificateController');
 
+/* ── Student: my certificates ────────────────────────────────────── */
+router.get('/my', protect, requireRole('student'), ctrl.getMyCertificates);
+
 /* ── Template Routes ─────────────────────────────────────────────── */
 
 // Create a new template (preset or uploaded background)
@@ -35,8 +38,8 @@ router.delete(
   ctrl.deleteTemplate
 );
 
-/* ── Recipient Routes (open — read-only organizer data) ─────────── */
-router.get('/recipients/:hackathonId', ctrl.getRecipients);
+/* ── Recipient Routes ─────────────────────────────────────────────── */
+router.get('/recipients/:hackathonId', protect, requireRole('organizer', 'admin'), ctrl.getRecipients);
 
 /* ── Generation Routes ───────────────────────────────────────────── */
 router.post(

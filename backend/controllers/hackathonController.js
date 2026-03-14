@@ -1,6 +1,7 @@
 const path     = require('path');
 const fs       = require('fs');
 const Hackathon = require('../models/Hackathon');
+const User      = require('../models/User');
 const slugify   = require('slugify');
 const { processImageToBase64 } = require('../utils/imageProcessor');
 const { uploadDir } = require('../middleware/uploadMiddleware');
@@ -33,6 +34,29 @@ const savePdfToDisk = (fileObj) => {
 /* ── CREATE ───────────────────────────────────────────── */
 const createHackathon = async (req, res) => {
   try {
+    // Verify that the requesting user is an approved organizer
+    const user = await User.findById(req.user.id).select('orgVerified');
+    if (!user || !user.orgVerified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your organizer account must be verified by an admin before creating hackathons.',
+      });
+    }
+
+    // ── Block if organizer already has an active hackathon ──────
+    const activeHackathon = await Hackathon.findOne({
+      createdBy: req.user.id,
+      status: { $in: ['upcoming', 'live'] },
+    }).select('title');
+
+    if (activeHackathon) {
+      return res.status(400).json({
+        success: false,
+        message: `You already have an active hackathon: "${activeHackathon.title}". Please mark it as completed before creating a new one.`,
+      });
+    }
+
+
     const body = req.body;
 
     let slug = slugify(body.title, { lower: true, strict: true });
@@ -99,6 +123,7 @@ const createHackathon = async (req, res) => {
       rules:                parse(body.rules)  || [],
       organizerContact:     body.organizerContact,
       whatsappLink:         body.whatsappLink || '',
+      createdBy:            req.user.id,   // link to the organizer who created it
     };
 
     const hackathon = await Hackathon.create(data);
@@ -151,10 +176,20 @@ const updateHackathon = async (req, res) => {
       }
     }
 
+    const oldHackathon = await Hackathon.findOne({ slug: req.params.slug });
+    if (!oldHackathon) return res.status(404).json({ success: false, message: 'Not found' });
+
     const hackathon = await Hackathon.findOneAndUpdate(
       { slug: req.params.slug }, updates, { new: true, runValidators: true }
     );
-    if (!hackathon) return res.status(404).json({ success: false, message: 'Not found' });
+    
+    // ── Loyalty points on completion ──
+    if (updates.status === 'completed' && oldHackathon.status !== 'completed') {
+      const { addLoyaltyPoints } = require('../utils/loyaltyProcessor');
+      await addLoyaltyPoints(hackathon.createdBy, 100, 'Hackathon Completed Successfully');
+      await User.findByIdAndUpdate(hackathon.createdBy, { $inc: { totalHackathonsHosted: 1 } });
+    }
+
     res.json({ success: true, data: hackathon });
   } catch (err) {
     console.error('updateHackathon:', err);

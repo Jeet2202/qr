@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   LayoutDashboard, FileText, Settings, ChevronRight, Users, Star, Award,
-  Search, Download, Copy, Mail, Trash2, Eye, BarChart2, ClipboardList,
+  Search, Download, Trash2, Eye, BarChart2, ClipboardList,
   ToggleLeft, ToggleRight, AlertTriangle, CheckCircle2, ExternalLink,
   CalendarDays, Trophy, Zap, Grid3X3, List, TrendingUp, Clock, ArrowUpRight,
   Plus, Pencil, MapPin, X,
@@ -69,12 +69,11 @@ function Toast({ t }) {
   );
 }
 
-/* ─── TABS CONFIG (4 only) ─── */
+/* ─── TABS CONFIG (3 only) ─── */
 const TABS = [
-  { key: 'overview',      label: 'Overview',      icon: LayoutDashboard },
-  { key: 'participants',  label: 'Participants',   icon: Users           },
-  { key: 'teams',         label: 'Teams',          icon: Award           },
-  { key: 'settings',      label: 'Settings',       icon: Settings        },
+  { key: 'overview',  label: 'Overview',  icon: LayoutDashboard },
+  { key: 'teams',     label: 'Teams',      icon: Award           },
+  { key: 'settings',  label: 'Settings',   icon: Settings        },
 ];
 
 function TabBar({ active, set }) {
@@ -102,23 +101,23 @@ function HackHeader({ hack, showToast }) {
       {/* Gradient top strip */}
       <div className="h-1.5 bg-gradient-to-r from-royal via-blue-500 to-violet-500" />
 
-      <div className="bg-white px-6 py-5">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-5 flex-wrap">
+      <div className="bg-white px-4 sm:px-6 py-5">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           {/* Left */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2.5 mb-2 flex-wrap">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
               <SBadge s={hack.status || 'Upcoming'} />
               <span className="text-xs text-gray-400 font-medium">ID: {hack.hackathonId || 'HF-001'}</span>
             </div>
-            <h1 className="text-2xl font-extrabold text-dark tracking-tight mb-3 truncate">{hack.title}</h1>
-            <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-dark tracking-tight mb-3 break-words">{hack.title}</h1>
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
               {[
                 [CalendarDays, `Deadline: ${hack.deadline}`,   'text-gray-500'],
                 [Trophy,       `Prize: ₹${hack.prize}`,        'text-amber-600'],
                 [Users,        `${hack.regCount || 0} Registered`,  'text-royal'],
                 [FileText,     `${hack.subCount || 0} Submissions`,  'text-violet-600'],
               ].map(([Icon, text, cls]) => (
-                <div key={text} className={`flex items-center gap-1.5 text-sm font-medium ${cls}`}>
+                <div key={text} className={`flex items-center gap-1.5 text-xs sm:text-sm font-medium ${cls}`}>
                   <Icon size={13} className="shrink-0" />{text}
                 </div>
               ))}
@@ -126,15 +125,7 @@ function HackHeader({ hack, showToast }) {
           </div>
 
           {/* Right — quick actions */}
-          <div className="flex flex-wrap gap-2.5 shrink-0">
-            <button onClick={() => { navigator.clipboard?.writeText(hack.regLink || ''); showToast('Registration link copied!'); }}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-royal border border-royal/20 bg-royal/5 rounded-xl hover:bg-royal/10 transition-all cursor-pointer">
-              <Copy size={12} /> Copy Link
-            </button>
-            <button onClick={() => showToast('Email composer opened')}
-              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-gray-600 border border-gray-200 rounded-xl hover:border-royal/40 hover:text-royal transition-all cursor-pointer">
-              <Mail size={12} /> Announce
-            </button>
+          <div className="flex flex-wrap gap-2 shrink-0">
             <Link to="/organizer/ppt-review"
               className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-white bg-royal rounded-xl hover:bg-blue-700 transition-all cursor-pointer shadow-sm shadow-royal/20">
               <ExternalLink size={12} /> PPT Review
@@ -369,7 +360,7 @@ function OverviewTab({ hack, activity, showToast, hackathonId }) {
 }
 
 /* ─── PARTICIPANTS TAB ─── */
-function ParticipantsTab({ participants, showToast }) {
+function ParticipantsTab({ participants, setParticipants, showToast }) {
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState('');
   const [selected, setSelected] = useState([]);
@@ -392,8 +383,16 @@ function ParticipantsTab({ participants, showToast }) {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (res.ok) showToast(`${reg.teamName} shortlisted!`);
-      else showToast('Shortlist failed.');
+      if (res.ok) {
+        showToast(`${reg.teamName} shortlisted!`);
+        // Refresh data by reloading the page data would be ideal;
+        // for now just update local state
+        setParticipants && setParticipants(prev =>
+          prev.map(p => p._id === reg._id ? { ...p, shortlisted: true } : p)
+        );
+      } else {
+        showToast('Shortlist failed.');
+      }
     } catch {
       showToast('Network error.');
     }
@@ -404,14 +403,14 @@ function ParticipantsTab({ participants, showToast }) {
       {/* Detail drawer */}
       {drawer && (
         <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm" onClick={() => setDrawer(null)}>
-          <div className="absolute right-0 top-0 bottom-0 w-80 bg-white shadow-2xl p-6 overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-white shadow-2xl p-6 overflow-y-auto" onClick={e => e.stopPropagation()}>
             <button onClick={() => setDrawer(null)} className="absolute top-4 right-4 text-gray-400 hover:text-dark cursor-pointer w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-sm">✕</button>
             <div className="text-center mb-6 pt-2">
-              <div className="w-16 h-16 rounded-2xl text-white text-xl font-bold flex items-center justify-center mx-auto mb-3" style={{ background: avBg(drawer.name) }}>{initials(drawer.name)}</div>
-              <p className="text-base font-bold text-dark">{drawer.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{drawer.id}</p>
+              <div className="w-16 h-16 rounded-2xl text-white text-xl font-bold flex items-center justify-center mx-auto mb-3" style={{ background: avBg(drawer.leaderName || drawer.teamName) }}>{initials(drawer.leaderName || drawer.teamName || 'T')}</div>
+              <p className="text-base font-bold text-dark">{drawer.leaderName}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{drawer.leaderEmail}</p>
             </div>
-            {[['Email', drawer.email], ['College', drawer.college], ['Team', drawer.team], ['Status', drawer.status], ['Joined', drawer.joined]].map(([k, v]) => (
+            {[['Team', drawer.teamName], ['College', drawer.college], ['Domain', drawer.domain || '—'], ['PS ID', drawer.psId || '—'], ['Status', drawer.shortlisted ? 'Shortlisted ✓' : 'Not shortlisted'], ['Registered', drawer.submittedAt ? new Date(drawer.submittedAt).toLocaleDateString('en-IN') : '—']].map(([k, v]) => (
               <div key={k} className="flex justify-between py-3 border-b border-gray-100">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{k}</span>
                 <span className="text-sm font-medium text-dark">{v}</span>
@@ -441,8 +440,9 @@ function ParticipantsTab({ participants, showToast }) {
         <select value={filter} onChange={e => setFilter(e.target.value)}
           className="px-3 py-2.5 text-sm bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-royal/25 cursor-pointer">
           <option value="">All Status</option>
-          <option value="Verified">Verified</option>
-          <option value="Pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="pending">Pending</option>
+          <option value="rejected">Rejected</option>
         </select>
       </div>
 
@@ -537,15 +537,131 @@ function ParticipantsTab({ participants, showToast }) {
 
 /* ─── TEAMS TAB ─── */
 function TeamsTab({ teams }) {
-  const [view, setView]     = useState('grid');
-  const [filter, setFilter] = useState('all');
-  const filtered = teams.filter(t => filter === 'all' ? true : filter === 'submitted' ? t.submitted : !t.submitted);
+  const [view, setView]         = useState('grid');
+  const [filter, setFilter]     = useState('all');
+  const [selected, setSelected] = useState(null); // team drawer
+
+  const filtered = teams.filter(t =>
+    filter === 'all' ? true : filter === 'submitted' ? t.submitted : !t.submitted
+  );
 
   return (
     <div>
+      {/* ── Team detail drawer ── */}
+      {selected && (
+        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm" onClick={() => setSelected(null)}>
+          <div className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-white shadow-2xl flex flex-col" onClick={e => e.stopPropagation()}>
+            {/* Drawer header */}
+            <div className="px-6 py-5 border-b border-gray-100 flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white text-base font-bold shrink-0"
+                  style={{ background: `hsl(${(selected.name?.charCodeAt(0) || 0) * 47 % 360},55%,55%)` }}>
+                  {(selected.name || 'T')[0].toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-base font-extrabold text-dark">{selected.name}</p>
+                  <p className="text-xs text-gray-400">{selected.college}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelected(null)}
+                className="w-7 h-7 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 hover:text-dark cursor-pointer text-sm">
+                ✕
+              </button>
+            </div>
+
+            {/* Badges */}
+            <div className="px-6 py-3 border-b border-gray-100 flex gap-2 flex-wrap">
+              <SBadge s={selected.submitted ? 'Active' : 'Pending'} />
+              {selected.shortlisted && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                  <CheckCircle2 size={10} /> Shortlisted
+                </span>
+              )}
+              {selected.score != null && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+                  style={{ color: sColor(selected.score), background: sBg(selected.score) }}>
+                  AI Score: {selected.score}/100
+                </span>
+              )}
+            </div>
+
+            {/* Members list */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+                Team Members ({selected.memberNames?.length || 0})
+              </p>
+              <div className="space-y-3">
+                {/* Leader */}
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-royal/5 border border-royal/10">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                    style={{ background: `hsl(${(selected.leaderName?.charCodeAt(0) || 0) * 47 % 360},55%,55%)` }}>
+                    {(selected.leaderName || 'L')[0].toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-dark truncate">{selected.leaderName}</p>
+                    <p className="text-[11px] text-gray-400 truncate">{selected.leaderEmail}</p>
+                  </div>
+                  <span className="ml-auto shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full bg-royal text-white">Leader</span>
+                </div>
+
+                {/* Other members */}
+                {(selected.teamMembers || []).map((m, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                      style={{ background: `hsl(${(m.name?.charCodeAt(0) || 0) * 47 % 360},55%,55%)` }}>
+                      {(m.name || '?')[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-dark truncate">{m.name || '—'}</p>
+                      <p className="text-[11px] text-gray-400 truncate">{m.email || '—'}</p>
+                      {m.college && <p className="text-[10px] text-gray-300 truncate">{m.college}</p>}
+                    </div>
+                  </div>
+                ))}
+
+                {(!selected.teamMembers || selected.teamMembers.length === 0) && (
+                  <p className="text-xs text-gray-400 italic text-center py-4">No additional members listed.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Resume link */}
+            {selected.resumeUrl && (
+              <div className="px-6 py-4 border-t border-gray-100">
+                <a href={`http://localhost:5000${selected.resumeUrl}`} target="_blank" rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-royal border-2 border-royal/20 hover:bg-royal hover:text-white transition-all cursor-pointer">
+                  <Eye size={14} /> View Resume / Submission
+                </a>
+              </div>
+            )}
+
+            {/* GitHub link */}
+            {selected.githubLink && (
+              <div className="px-6 py-4 border-t border-gray-100">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">GitHub Repository</p>
+                <a href={selected.githubLink} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors group">
+                  <div className="w-6 h-6 rounded-lg bg-gray-900 flex items-center justify-center shrink-0">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 0C5.374 0 0 5.373 0 12c0 5.303 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/>
+                    </svg>
+                  </div>
+                  <span className="text-xs font-mono text-gray-600 truncate flex-1 group-hover:text-gray-900 transition-colors">
+                    {selected.githubLink.replace('https://github.com/', '')}
+                  </span>
+                  <ExternalLink size={11} className="text-gray-400 shrink-0" />
+                </a>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* Toolbar */}
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div className="flex gap-2">
-          {[['all', 'All'], ['submitted', 'Submitted'], ['pending', 'Not Submitted']].map(([v, l]) => (
+          {[['all', `All (${teams.length})`], ['submitted', 'Submitted'], ['pending', 'Not Submitted']].map(([v, l]) => (
             <button key={v} onClick={() => setFilter(v)}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors cursor-pointer ${filter === v ? 'bg-royal text-white border-royal' : 'border-gray-200 text-gray-600 hover:border-royal/40'}`}>
               {l}
@@ -562,58 +678,70 @@ function TeamsTab({ teams }) {
         </div>
       </div>
 
+      {/* Grid view */}
       {view === 'grid' ? (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {filtered.length === 0 && <span className="text-sm text-gray-500 italic">No teams formed yet.</span>}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.length === 0 && <span className="text-sm text-gray-500 italic">No teams registered yet.</span>}
           {filtered.map((t, i) => (
-            <div key={t.teamId || t._id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_20px_rgba(30,100,255,0.09)] hover:-translate-y-0.5 transition-all duration-200">
+            <div key={t.teamId || t._id}
+              onClick={() => setSelected(t)}
+              className="bg-white rounded-2xl border border-gray-100 p-5 shadow-[0_1px_4px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_20px_rgba(30,100,255,0.09)] hover:-translate-y-0.5 hover:border-royal/20 transition-all duration-200 cursor-pointer group">
               <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold" style={{ background: `hsl(${i * 70 + 200},55%,55%)` }}>{t.name[0]}</div>
-                <SBadge s={t.submitted ? 'Active' : 'Pending'} />
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold"
+                  style={{ background: `hsl(${(t.name?.charCodeAt(0) || 0) * 47 % 360},55%,55%)` }}>
+                  {(t.name || 'T')[0].toUpperCase()}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {t.shortlisted && <CheckCircle2 size={13} className="text-emerald-500" />}
+                  <SBadge s={t.submitted ? 'Active' : 'Pending'} />
+                </div>
               </div>
-              <p className="font-bold text-dark text-sm mb-0.5">{t.name}</p>
+              <p className="font-bold text-dark text-sm mb-0.5 group-hover:text-royal transition-colors">{t.name}</p>
               <p className="text-xs text-gray-400 mb-3">{t.college}</p>
-              <div className="space-y-1 mb-3">
-                {t.memberNames && t.memberNames.map(m => (
-                  <div key={m} className="flex items-center gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-royal" />
-                    <span className="text-xs text-gray-600">{m}</span>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-500">
+                  {(t.memberNames?.length || 1)} member{(t.memberNames?.length || 1) !== 1 ? 's' : ''}
+                </p>
+                {t.score != null && (
+                  <span className="text-xs font-bold" style={{ color: sColor(t.score) }}>{t.score}/100</span>
+                )}
               </div>
-              {t.score != null && (
-                <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
-                  <span className="text-xs text-gray-400">AI Score</span>
-                  <span className="text-sm font-bold" style={{ color: sColor(t.score) }}>{t.score}/100</span>
-                </div>
-              )}
-              {!t.submitted && (
-                <div className="pt-3 border-t border-gray-100">
-                  <span className="text-xs text-amber-600 font-semibold">No submission yet</span>
-                </div>
-              )}
+              <p className="text-[11px] text-royal mt-2 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">Click to view members →</p>
             </div>
           ))}
         </div>
       ) : (
+        /* List view */
         <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/60">
-                  {['Team', 'Members', 'College', 'Submission', 'Score'].map(h => (
+                  {['Team', 'Leader', 'Members', 'College', 'Submission', 'Score'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-[11px] font-bold text-gray-400 uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr className="border-b border-gray-50 text-center"><td colSpan="5" className="px-4 py-8 text-sm text-gray-500 italic">No teams found.</td></tr>
+                  <tr><td colSpan="6" className="px-4 py-8 text-sm text-gray-500 italic text-center">No teams found.</td></tr>
                 )}
                 {filtered.map(t => (
-                  <tr key={t.teamId || t._id} className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors">
-                    <td className="px-4 py-3 text-sm font-semibold text-dark">{t.name}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{t.memberNames ? t.memberNames.join(', ') : ''}</td>
+                  <tr key={t.teamId || t._id}
+                    onClick={() => setSelected(t)}
+                    className="border-b border-gray-50 hover:bg-blue-50/30 transition-colors cursor-pointer">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
+                          style={{ background: `hsl(${(t.name?.charCodeAt(0) || 0) * 47 % 360},55%,55%)` }}>
+                          {(t.name || 'T')[0].toUpperCase()}
+                        </div>
+                        <span className="text-sm font-semibold text-dark">{t.name}</span>
+                        {t.shortlisted && <CheckCircle2 size={12} className="text-emerald-500" />}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600">{t.leaderName}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500">{t.memberNames?.length || 1}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">{t.college}</td>
                     <td className="px-4 py-3"><SBadge s={t.submitted ? 'Active' : 'Pending'} /></td>
                     <td className="px-4 py-3 text-sm font-bold" style={{ color: t.score ? sColor(t.score) : '#94a3b8' }}>{t.score ?? '—'}</td>
@@ -655,7 +783,7 @@ function SettingsTab({ hack, showToast }) {
   };
 
   return (
-    <div className="space-y-5 max-w-2xl">
+    <div className="space-y-5">
       {/* Event controls */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
         <h3 className="text-sm font-bold text-dark mb-5">Event Controls</h3>
@@ -777,7 +905,7 @@ export default function ManageHackathon() {
 
       <div className={`transition-all duration-300 ${sbOpen ? 'lg:pl-60' : 'lg:pl-16'}`}>
         {/* Top navbar */}
-        <div className="sticky top-0 z-20 h-[60px] bg-white/90 backdrop-blur border-b border-gray-100 flex items-center justify-between px-6">
+        <div className="sticky top-0 z-20 h-[60px] bg-white/90 backdrop-blur border-b border-gray-100 flex items-center justify-between px-4 sm:px-6 pl-14 lg:pl-6">
           <div className="flex items-center gap-2 text-sm">
             <Link to="/organizer-dashboard" className="text-gray-400 hover:text-royal transition-colors">Dashboard</Link>
             <ChevronRight size={13} className="text-gray-300" />
@@ -837,11 +965,10 @@ export default function ManageHackathon() {
               {/* Tab card */}
               <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden">
                 <TabBar active={tab} set={setTab} />
-                <div className="p-6">
-                  {tab === 'overview'     && <OverviewTab hack={hackData} activity={activities} showToast={showToast} hackathonId={hackData.hackathonId || hackathonSlug || hackData.slug} />}
-                  {tab === 'participants' && <ParticipantsTab participants={participants} showToast={showToast} />}
-                  {tab === 'teams'        && <TeamsTab teams={teams} />}
-                  {tab === 'settings'     && <SettingsTab hack={hackData} showToast={showToast} />}
+                <div className="p-4 sm:p-6">
+                  {tab === 'overview'  && <OverviewTab hack={hackData} activity={activities} showToast={showToast} hackathonId={hackData.hackathonId || hackathonSlug || hackData.slug} />}
+                  {tab === 'teams'     && <TeamsTab teams={teams} />}
+                  {tab === 'settings'  && <SettingsTab hack={hackData} showToast={showToast} />}
                 </div>
               </div>
             </>
