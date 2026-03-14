@@ -19,7 +19,8 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: "*"
+  origin: "https://frontendhackflow.vercel.app/",
+  credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -32,12 +33,12 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/live-event", require("./routes/liveEvent"));
 app.use("/api/hackathons", require("./routes/hackathonRoutes"));
 app.use("/api/organizer/hackathons", require("./routes/organizerHackathonRoutes"));
-app.use("/api/organizer/events",  require("./routes/eventRoutes"));
-app.use("/api/organizer/cocom",   require("./routes/cocomRoutes"));
-app.use("/api/certificates",      require("./routes/certificateRoutes"));
-app.use("/api/registrations",     require("./routes/registrationRoutes"));
-app.use("/api",                   require("./routes/verification"));   // mounts /api/organizer/verification + /api/admin/*
-app.use("/api/registrations",     require("./routes/registrationRoutes"));
+app.use("/api/organizer/events", require("./routes/eventRoutes"));
+app.use("/api/organizer/cocom", require("./routes/cocomRoutes"));
+app.use("/api/certificates", require("./routes/certificateRoutes"));
+app.use("/api/registrations", require("./routes/registrationRoutes"));
+app.use("/api", require("./routes/verification"));   // mounts /api/organizer/verification + /api/admin/*
+app.use("/api/registrations", require("./routes/registrationRoutes"));
 
 // Health check
 app.get("/", (req, res) => res.json({ status: "HackFlow API running 🚀" }));
