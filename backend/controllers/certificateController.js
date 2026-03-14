@@ -5,7 +5,12 @@ const Hackathon             = require('../models/Hackathon');
 const User                  = require('../models/User');
 const nodemailer            = require('nodemailer');
 const sharp                 = require('sharp');
-const { createCanvas }      = require('canvas');         // cross-platform text rendering
+// canvas is a native addon — may not compile on all platforms (e.g. Render free tier).
+// Load it safely so a missing canvas doesn't crash the entire route registration.
+let createCanvas = null;
+try { createCanvas = require('canvas').createCanvas; } catch (_) {
+  console.warn('⚠️  canvas module not available — personalized certificate image stamping disabled.');
+}
 const { processImageToBase64 } = require('../utils/imageProcessor');
 
 
@@ -398,7 +403,9 @@ function makeCertNumber() {
  * This approach is fully cross-platform (no librsvg needed).
  */
 async function buildCertificateBuffer(base64Image, name, nameX, nameY, fontSize, color) {
-  // 1. Decode base64 certificate image → buffer
+  if (!createCanvas) {
+    throw new Error('canvas module is not available on this server. Personalized image stamping is disabled.');
+  }
   const raw      = base64Image.replace(/^data:image\/\w+;base64,/, '');
   const inputBuf = Buffer.from(raw, 'base64');
 

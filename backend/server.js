@@ -38,7 +38,7 @@ app.use("/api/organizer/cocom", require("./routes/cocomRoutes"));
 app.use("/api/certificates", require("./routes/certificateRoutes"));
 app.use("/api/registrations", require("./routes/registrationRoutes"));
 app.use("/api", require("./routes/verification"));   // mounts /api/organizer/verification + /api/admin/*
-app.use("/api/registrations", require("./routes/registrationRoutes"));
+
 
 // Health check
 app.get("/", (req, res) => res.json({ status: "HackFlow API running 🚀" }));
